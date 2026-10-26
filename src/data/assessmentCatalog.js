@@ -1184,6 +1184,7 @@ export const COURSE_ASSESSMENT_CATALOG = {
  */
 export const getAssessmentForCourse = (courseIdOrSlug) => {
   const str = String(courseIdOrSlug || "").trim().toLowerCase();
+  const num = Number(courseIdOrSlug);
   
   let result = null;
   if (!isNaN(num) && COURSE_ASSESSMENT_CATALOG[num]) {

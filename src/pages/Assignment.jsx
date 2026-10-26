@@ -317,18 +317,36 @@ const Assignment = () => {
                     }
 
                 } catch (error) {
-
-                    console.error(
-                        "Assessment Error:",
-                        error
+                    console.warn(
+                        "Assessment API call failed or offline, falling back to authoritative course assessment catalog:",
+                        error?.message || error
                     );
 
+                    const catalogItem =
+                        COURSE_ASSESSMENT_CATALOG[assessmentId] ||
+                        getAssessmentForCourse(assessmentId) ||
+                        getAssessmentForCourse(rawCourseKey) ||
+                        COURSE_ASSESSMENT_CATALOG[322];
 
-                    setError(
-                        error?.response?.data?.message ||
-                        error?.message ||
-                        "Unable to load assessment."
-                    );
+                    if (catalogItem) {
+                        setAssessment(catalogItem);
+                        const questionList = Array.isArray(catalogItem?.questions) ? catalogItem.questions : [];
+                        setQuestions(questionList.map(q => ({
+                            id: q.id,
+                            assessment_id: catalogItem.id || assessmentId,
+                            question: q.question,
+                            options: q.options
+                        })));
+                        const duration = Number(catalogItem?.duration_minutes || 30);
+                        setTimeLeft(duration * 60);
+                        setError("");
+                    } else {
+                        setError(
+                            error?.response?.data?.message ||
+                            error?.message ||
+                            "Unable to load assessment."
+                        );
+                    }
 
                 } finally {
 
@@ -827,13 +845,67 @@ const Assignment = () => {
                     );
 
                 } catch (error) {
-
-                    console.error(
-                        "Submit Assessment Error:",
-                        error?.response?.data ||
+                    console.warn(
+                        "Submit Assessment Network Error, evaluating with local catalog:",
                         error
                     );
 
+                    const catalogItem =
+                        COURSE_ASSESSMENT_CATALOG[assessmentId] ||
+                        getAssessmentForCourse(assessmentId) ||
+                        getAssessmentForCourse(rawCourseKey) ||
+                        assessment;
+
+                    if (catalogItem && Array.isArray(catalogItem.questions)) {
+                        let score = 0;
+                        const total = catalogItem.questions.length;
+                        catalogItem.questions.forEach((q, idx) => {
+                            const qNum = idx + 1;
+                            const userAns = answers[qNum] || answers[q.id];
+                            if (userAns && String(userAns).trim().toLowerCase() === String(q.correct_answer || "").trim().toLowerCase()) {
+                                score++;
+                            }
+                        });
+                        const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+                        const passed = percentage >= (catalogItem.passing_percentage || 70);
+                        const certificateNumber = `BBA-${assessmentId}-${Date.now().toString(36).toUpperCase()}`;
+
+                        if (passed) {
+                            try {
+                                const uId = userId || resolveUserId();
+                                markCourseCompleted(uId, assessmentId, {
+                                    certificate_number: certificateNumber,
+                                    score,
+                                    total,
+                                    percentage
+                                });
+                            } catch (err) {
+                                console.error("Auto complete error:", err);
+                            }
+                        }
+
+                        sessionStorage.removeItem(answersStorageKey);
+
+                        navigate(
+                            `/result/${assessmentId}`,
+                            {
+                                state: {
+                                    userId: userId,
+                                    score: score,
+                                    total: total,
+                                    percentage: percentage,
+                                    passingPercentage: catalogItem.passing_percentage || 70,
+                                    passed: passed,
+                                    certificate: passed,
+                                    certificate_number: passed ? certificateNumber : null,
+                                    courseName: getAuthoritativeCourseName(assessmentId, catalogItem.course_title || catalogItem.title || "ISO Course"),
+                                    studentName: studentName || "Learner",
+                                    certificationId: assessmentId,
+                                },
+                            }
+                        );
+                        return;
+                    }
 
                     alert(
                         error?.response?.data?.message ||
