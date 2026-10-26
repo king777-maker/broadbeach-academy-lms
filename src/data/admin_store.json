@@ -1,0 +1,922 @@
+{
+  "admin_users": [
+    {
+      "id": 1,
+      "name": "Administrator",
+      "email": "admin@broadbeachlearning.com",
+      "role": "super_admin",
+      "status": "active",
+      "mfa_enabled": true,
+      "mfa_secret": "JBSWY3DPEHPK3PXP",
+      "pin_salt": "bba_salt_2026_super",
+      "pin_hash": "5456b0a0070a15201ab55ccfef8bc9bce25bb0667efcc8b3f35e78326f1424a4",
+      "pin_failed_attempts": 0,
+      "pin_locked_until": null,
+      "recovery_codes": [
+        "BBA-REC-8921-X9A",
+        "BBA-REC-4412-B2C",
+        "BBA-REC-7731-M1F"
+      ],
+      "created_at": "2026-08-01T10:00:00.000Z",
+      "last_login": "2026-10-24T10:30:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "Sarah Jenkins",
+      "email": "cert.manager@broadbeach.in",
+      "role": "cert_manager",
+      "status": "active",
+      "mfa_enabled": true,
+      "mfa_secret": "JBSWY3DPEHPK3PXP",
+      "pin_salt": "bba_salt_2026_super",
+      "pin_hash": "5456b0a0070a15201ab55ccfef8bc9bce25bb0667efcc8b3f35e78326f1424a4",
+      "pin_failed_attempts": 0,
+      "pin_locked_until": null,
+      "recovery_codes": [
+        "BBA-REC-2109-P4Q",
+        "BBA-REC-3382-K8L"
+      ],
+      "created_at": "2026-08-15T11:30:00.000Z",
+      "last_login": "2026-10-23T16:45:00.000Z"
+    },
+    {
+      "id": 3,
+      "name": "Amitabh Roy",
+      "email": "support.agent@broadbeach.in",
+      "role": "support_agent",
+      "status": "active",
+      "mfa_enabled": true,
+      "mfa_secret": "JBSWY3DPEHPK3PXP",
+      "pin_salt": "bba_salt_2026_super",
+      "pin_hash": "5456b0a0070a15201ab55ccfef8bc9bce25bb0667efcc8b3f35e78326f1424a4",
+      "pin_failed_attempts": 0,
+      "pin_locked_until": null,
+      "recovery_codes": [
+        "BBA-REC-7110-V9W"
+      ],
+      "created_at": "2026-09-01T09:15:00.000Z",
+      "last_login": "2026-10-24T09:10:00.000Z"
+    },
+    {
+      "id": 4,
+      "name": "Elena Rostova",
+      "email": "readonly.admin@broadbeach.in",
+      "role": "read_only",
+      "status": "active",
+      "mfa_enabled": true,
+      "mfa_secret": "JBSWY3DPEHPK3PXP",
+      "pin_salt": "bba_salt_2026_super",
+      "pin_hash": "5456b0a0070a15201ab55ccfef8bc9bce25bb0667efcc8b3f35e78326f1424a4",
+      "pin_failed_attempts": 0,
+      "pin_locked_until": null,
+      "recovery_codes": [
+        "BBA-REC-9014-T6Z"
+      ],
+      "created_at": "2026-09-10T14:20:00.000Z",
+      "last_login": "2026-10-22T15:00:00.000Z"
+    }
+  ],
+  "online_certificates": [
+    {
+      "id": 13,
+      "certificate_number": "BOA332101189",
+      "user_id": 101,
+      "student_name": "User 101",
+      "candidate_email": "user101@broadbeach.in",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "score": 10,
+      "total_questions": 10,
+      "percentage": 100,
+      "exam_bypassed": true,
+      "bypass_code": "BBA-ONCE-SINGLE-USE",
+      "completion_date": "2026-10-26T17:40:41.778Z",
+      "issued_at": "2026-10-26T17:40:41.778Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "access_code",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 12,
+      "certificate_number": "BOA33213229",
+      "user_id": 13,
+      "student_name": "QA Tester",
+      "candidate_email": "qa.tester@broadbeach.in",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-10-26T17:40:41.697Z",
+      "issued_at": "2026-10-26T17:40:41.697Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5,
+      "exam_bypassed": true,
+      "bypass_code": "BBA-EMS-2026-VIP"
+    },
+    {
+      "id": 11,
+      "certificate_number": "BOA10117",
+      "user_id": 13,
+      "student_name": "QA Tester",
+      "candidate_email": "qa.tester@broadbeach.in",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-10-21T20:45:00.000Z",
+      "issued_at": "2026-10-21T20:48:00.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 10,
+      "certificate_number": "BOA10116",
+      "user_id": 11,
+      "student_name": "Priya Darshini",
+      "candidate_email": "priya.darshini@broadbeach.in",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 12,
+      "total_questions": 13,
+      "percentage": 92,
+      "completion_date": "2026-10-09T10:04:12.000Z",
+      "issued_at": "2026-10-09T10:06:47.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 9,
+      "certificate_number": "BOA10115",
+      "user_id": 10,
+      "student_name": "Rajesh Raman",
+      "candidate_email": "rajesh.raman@tcs-global.com",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "score": 11,
+      "total_questions": 13,
+      "percentage": 85,
+      "completion_date": "2026-09-27T19:40:00.000Z",
+      "issued_at": "2026-09-27T19:46:15.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 8,
+      "certificate_number": "BOA10114",
+      "user_id": 9,
+      "student_name": "Deepak Verma",
+      "candidate_email": "deepak.verma@apex-ind.com",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-09-23T08:45:00.000Z",
+      "issued_at": "2026-09-23T08:48:13.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 7,
+      "certificate_number": "BOA10113",
+      "user_id": 8,
+      "student_name": "Siddharth Gautam",
+      "candidate_email": "siddharth.g@broadbeach.in",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 12,
+      "total_questions": 13,
+      "percentage": 92,
+      "completion_date": "2026-09-22T12:20:00.000Z",
+      "issued_at": "2026-09-22T12:28:26.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 6,
+      "certificate_number": "BOA10112",
+      "user_id": 7,
+      "student_name": "Divya Mehra",
+      "candidate_email": "divya.m@techcorp.in",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "score": 10,
+      "total_questions": 13,
+      "percentage": 77,
+      "completion_date": "2026-09-20T00:35:00.000Z",
+      "issued_at": "2026-09-20T00:40:29.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 5,
+      "certificate_number": "BOA10111",
+      "user_id": 6,
+      "student_name": "Karthik Raja",
+      "candidate_email": "karthik.raja@zenith.com",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-09-20T00:01:00.000Z",
+      "issued_at": "2026-09-20T00:06:29.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 4,
+      "certificate_number": "BOA10110",
+      "user_id": 5,
+      "student_name": "Sales Broadbeach",
+      "candidate_email": "sales@broadbeach.in",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-09-19T23:30:00.000Z",
+      "issued_at": "2026-09-19T23:37:14.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 3,
+      "certificate_number": "CERT-2026-0001",
+      "user_id": 4,
+      "student_name": "Harish Shankar",
+      "candidate_email": "harish.s@infra-audit.org",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 12,
+      "total_questions": 13,
+      "percentage": 92,
+      "completion_date": "2026-08-12T22:40:00.000Z",
+      "issued_at": "2026-08-12T22:46:41.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    },
+    {
+      "id": 2,
+      "certificate_number": "BBC-75402-IOC-5456",
+      "user_id": 3,
+      "student_name": "Lakshmi Narayanan",
+      "candidate_email": "lakshmi.n@chennaiaudit.com",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "score": 13,
+      "total_questions": 13,
+      "percentage": 100,
+      "completion_date": "2026-08-12T22:30:00.000Z",
+      "issued_at": "2026-08-12T22:39:08.000Z",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "online",
+      "chapters_completed": 5,
+      "total_chapters": 5
+    }
+  ],
+  "manual_certificates": [
+    {
+      "id": 101,
+      "certificate_number": "BBA-M-2026-0010",
+      "student_name": "Kavita R. Nair",
+      "candidate_email": "kavita.nair@precision-eng.com",
+      "course_name": "ISO 9001:2015 Quality Management System Lead Auditor",
+      "course_id": "la-1",
+      "issue_date": "2026-10-12",
+      "completion_date": "2026-10-10",
+      "issuing_organization": "Broadbeach Academy",
+      "authorized_signatory": "Dr. K. R. Sharma, Academic Director",
+      "training_type": "Offline Classroom Workshop",
+      "notes": "Corporate cohort Batch #BBA-BLR-42 at World Trade Center Bangalore.",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "manual",
+      "created_by": "cert.manager@broadbeach.in",
+      "created_at": "2026-10-12T11:20:00.000Z",
+      "updated_at": "2026-10-12T11:20:00.000Z",
+      "history": [
+        {
+          "action": "CREATED",
+          "by": "cert.manager@broadbeach.in",
+          "timestamp": "2026-10-12T11:20:00.000Z",
+          "details": "Initial manual issuance for corporate cohort."
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "certificate_number": "BBA-M-2026-0011",
+      "student_name": "Anand Sundaram",
+      "candidate_email": "anand.s@cybersec-global.io",
+      "course_name": "ISO 27001:2022 Information Security Management System Lead Implementer",
+      "course_id": "is-1",
+      "issue_date": "2026-10-18",
+      "completion_date": "2026-10-16",
+      "issuing_organization": "Broadbeach Academy",
+      "authorized_signatory": "R. Venkatesh, Head of Certification",
+      "training_type": "Corporate In-House",
+      "notes": "Executive corporate training program for Senior IT Security officers.",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "manual",
+      "created_by": "admin@broadbeachlearning.com",
+      "created_at": "2026-10-18T14:35:00.000Z",
+      "updated_at": "2026-10-18T14:35:00.000Z",
+      "history": [
+        {
+          "action": "CREATED",
+          "by": "admin@broadbeachlearning.com",
+          "timestamp": "2026-10-18T14:35:00.000Z",
+          "details": "Initial manual issuance."
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "certificate_number": "BBA-M-2026-0012",
+      "student_name": "Meera Krishnan",
+      "candidate_email": "meera.k@safetyfirst.org",
+      "course_name": "ISO 45001:2018 Occupational Health & Safety Lead Auditor",
+      "course_id": "oh-1",
+      "issue_date": "2026-10-20",
+      "completion_date": "2026-10-19",
+      "issuing_organization": "Broadbeach Academy",
+      "authorized_signatory": "S. G. Harrison, Principal Assessor",
+      "training_type": "Offline Workshop",
+      "notes": "Chennai industrial estate specialized EHS executive batch.",
+      "status": "active",
+      "verification_status": "Verified",
+      "source": "manual",
+      "created_by": "cert.manager@broadbeach.in",
+      "created_at": "2026-10-20T09:45:00.000Z",
+      "updated_at": "2026-10-20T09:45:00.000Z",
+      "history": [
+        {
+          "action": "CREATED",
+          "by": "cert.manager@broadbeach.in",
+          "timestamp": "2026-10-20T09:45:00.000Z",
+          "details": "Initial manual issuance."
+        }
+      ]
+    }
+  ],
+  "tickets": [
+    {
+      "id": "TCK-2026-0101",
+      "subject": "Unable to download certificate after completing assessment",
+      "requester_name": "Vikram Mehta",
+      "requester_email": "vikram.mehta@precision-corp.com",
+      "related_course": "ISO 9001:2015 QMS Internal Auditor",
+      "category": "Certificate Generation",
+      "priority": "High",
+      "assigned_admin": "support.agent@broadbeach.in",
+      "status": "Open",
+      "created_at": "2026-10-23T08:15:00.000Z",
+      "updated_at": "2026-10-24T06:10:00.000Z",
+      "messages": [
+        {
+          "id": "msg-1",
+          "sender": "Vikram Mehta",
+          "sender_type": "requester",
+          "text": "Hello Support, I scored 100% on my assessment yesterday but when clicking the download certificate button on the completion screen, it showed an error. Please verify my record and share the certificate.",
+          "timestamp": "2026-10-23T08:15:00.000Z"
+        },
+        {
+          "id": "msg-2",
+          "sender": "Amitabh Roy (Support Agent)",
+          "sender_type": "admin",
+          "text": "Hello Vikram, thank you for reaching out. We have located your passing score of 100% in our records. We are generating your official PDF link and will notify you shortly.",
+          "timestamp": "2026-10-23T09:30:00.000Z"
+        }
+      ],
+      "internal_notes": [
+        {
+          "id": "note-1",
+          "author": "Amitabh Roy",
+          "text": "Verified learner assessment in DB: Score 13/13 (100%). Ready for re-issuance in Online Cert Master.",
+          "timestamp": "2026-10-23T09:32:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "TCK-2026-0102",
+      "subject": "Lead Auditor Offline Batch Training for 4 Candidates",
+      "requester_name": "Vikram Mehta",
+      "requester_email": "vikram.mehta@precision-corp.com",
+      "related_course": "ISO 9001:2015 QMS Internal Auditor",
+      "category": "Offline Certification Enquiries",
+      "priority": "High",
+      "assigned_admin": "support.agent@broadbeach.in",
+      "status": "In Progress",
+      "created_at": "2026-10-17T17:07:08.048Z",
+      "updated_at": "2026-10-23T10:15:00.000Z",
+      "enquiry_ref": "ENQ-ia-1-MVCNFV68",
+      "messages": [
+        {
+          "id": "msg-102-1",
+          "sender": "Vikram Mehta",
+          "sender_type": "requester",
+          "text": "We require offline batch training for 4 engineers in our Bengaluru plant for ISO 9001:2015 internal auditor accreditation. Preferred location: World Trade Center (Malleshwaram).",
+          "timestamp": "2026-10-17T17:07:08.048Z"
+        },
+        {
+          "id": "msg-102-2",
+          "sender": "Amitabh Roy (Support Agent)",
+          "sender_type": "admin",
+          "text": "Proposal sent to Precision Engineering Global Ltd for the November executive batch.",
+          "timestamp": "2026-10-18T11:00:00.000Z"
+        }
+      ],
+      "internal_notes": [
+        {
+          "id": "note-102-1",
+          "author": "Amitabh Roy",
+          "text": "Commercial proposal with 15% corporate discount dispatched to procurement team.",
+          "timestamp": "2026-10-18T11:05:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "TCK-2026-0103",
+      "subject": "Enquiry for 5S & Workplace Organizational Excellence Lead Auditor",
+      "requester_name": "Test Auditor",
+      "requester_email": "auditor@broadbeach.test",
+      "related_course": "5S & Workplace Organizational Excellence Lead Auditor",
+      "category": "Offline Certification Enquiries",
+      "priority": "Medium",
+      "assigned_admin": "unassigned",
+      "status": "New",
+      "created_at": "2026-10-17T17:31:44.656Z",
+      "updated_at": "2026-10-17T17:31:44.656Z",
+      "enquiry_ref": "ENQ-la-14-MVCOBIJ3",
+      "messages": [
+        {
+          "id": "msg-103-1",
+          "sender": "Test Auditor",
+          "sender_type": "requester",
+          "text": "Testing registration enquiry for 5S Lead Auditor certification program. Please advise on upcoming weekend schedules.",
+          "timestamp": "2026-10-17T17:31:44.656Z"
+        }
+      ],
+      "internal_notes": []
+    },
+    {
+      "id": "TCK-2026-0104",
+      "subject": "Corporate fee schedule & offline batch dates for QMS Lead Auditor",
+      "requester_name": "Test Candidate",
+      "requester_email": "candidate@example.com",
+      "related_course": "ISO 9001:2015 Quality Management System (QMS) Lead Auditor",
+      "category": "Offline Certification Enquiries",
+      "priority": "Medium",
+      "assigned_admin": "support.agent@broadbeach.in",
+      "status": "Open",
+      "created_at": "2026-10-23T05:04:46.614Z",
+      "updated_at": "2026-10-23T09:00:00.000Z",
+      "enquiry_ref": "ENQ-la-1-MVKIA0PI",
+      "messages": [
+        {
+          "id": "msg-104-1",
+          "sender": "Test Candidate",
+          "sender_type": "requester",
+          "text": "Requesting offline batch schedule and corporate fees structure for individual enrollment.",
+          "timestamp": "2026-10-23T05:04:46.614Z"
+        }
+      ],
+      "internal_notes": [
+        {
+          "id": "note-104-1",
+          "author": "Amitabh Roy",
+          "text": "Sent course brochure and pricing calendar via admissions desk.",
+          "timestamp": "2026-10-23T09:05:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "TCK-2026-0105",
+      "subject": "Verification QR code scanning mismatch on physical certificate card",
+      "requester_name": "Pooja Hegde",
+      "requester_email": "pooja.hegde@greensafety.com",
+      "related_course": "ISO 22000:2018 Food Safety Management System",
+      "category": "Certificate Verification",
+      "priority": "Urgent",
+      "assigned_admin": "support.agent@broadbeach.in",
+      "status": "In Progress",
+      "created_at": "2026-10-24T05:30:00.000Z",
+      "updated_at": "2026-10-24T07:15:00.000Z",
+      "messages": [
+        {
+          "id": "msg-105-1",
+          "sender": "Pooja Hegde",
+          "sender_type": "requester",
+          "text": "My client is trying to scan the QR code printed on my ISO 22000 certificate and it gives a 404 error page. Certificate number is BBC-75402-IOC-5456.",
+          "timestamp": "2026-10-24T05:30:00.000Z"
+        },
+        {
+          "id": "msg-105-2",
+          "sender": "Amitabh Roy (Support Agent)",
+          "sender_type": "admin",
+          "text": "Hi Pooja, we are checking the registry mapping for certificate ID BBC-75402-IOC-5456. The registry route has been verified and resolves properly now.",
+          "timestamp": "2026-10-24T07:15:00.000Z"
+        }
+      ],
+      "internal_notes": [
+        {
+          "id": "note-105-1",
+          "author": "Sarah Jenkins",
+          "text": "Checked certificate BBC-75402-IOC-5456 in certificate registry. It is active and verified.",
+          "timestamp": "2026-10-24T07:10:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "TCK-2026-0106",
+      "subject": "Lesson 4 video buffering on mobile browser",
+      "requester_name": "Rohan Patel",
+      "requester_email": "rohan.p@greenmail.org",
+      "related_course": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "category": "Course Access",
+      "priority": "Low",
+      "assigned_admin": "support.agent@broadbeach.in",
+      "status": "Resolved",
+      "created_at": "2026-10-21T14:10:00.000Z",
+      "updated_at": "2026-10-22T09:20:00.000Z",
+      "messages": [
+        {
+          "id": "msg-106-1",
+          "sender": "Rohan Patel",
+          "sender_type": "requester",
+          "text": "On Android Chrome, Lesson 4 video player was not loading properly. Is there an alternate link?",
+          "timestamp": "2026-10-21T14:10:00.000Z"
+        },
+        {
+          "id": "msg-106-2",
+          "sender": "Amitabh Roy (Support Agent)",
+          "sender_type": "admin",
+          "text": "We updated the CDN streaming URL for Lesson 4. Please refresh your browser cache.",
+          "timestamp": "2026-10-22T09:18:00.000Z"
+        },
+        {
+          "id": "msg-106-3",
+          "sender": "Rohan Patel",
+          "sender_type": "requester",
+          "text": "Working perfectly now! Thank you.",
+          "timestamp": "2026-10-22T09:20:00.000Z"
+        }
+      ],
+      "internal_notes": [
+        {
+          "id": "note-106-1",
+          "author": "Amitabh Roy",
+          "text": "CDN cache invalidated. Learner confirmed issue resolved.",
+          "timestamp": "2026-10-22T09:21:00.000Z"
+        }
+      ]
+    }
+  ],
+  "trash_items": [
+    {
+      "id": "TRASH-2026-0001",
+      "record_id": "TCK-2026-0099",
+      "record_type": "Ticket",
+      "title": "TCK-2026-0099: Test submission for internal review",
+      "deleted_by": "Administrator",
+      "deleted_by_email": "admin@broadbeachlearning.com",
+      "deleted_at": "2026-10-22T10:14:00.000Z",
+      "original_data": {
+        "id": "TCK-2026-0099",
+        "subject": "Test submission for internal review",
+        "requester_name": "QA Internal",
+        "requester_email": "qa@broadbeach.in",
+        "category": "General Support",
+        "priority": "Low",
+        "status": "Closed",
+        "messages": [
+          {
+            "id": "msg-99-1",
+            "sender": "QA Internal",
+            "sender_type": "requester",
+            "text": "Automated ticket check.",
+            "timestamp": "2026-10-22T09:00:00.000Z"
+          }
+        ],
+        "internal_notes": []
+      }
+    }
+  ],
+  "audit_logs": [
+    {
+      "id": "LOG-MVPJLOZH-381",
+      "timestamp": "2026-10-26T17:40:41.789Z",
+      "created_at": "2026-10-26T17:40:41.789Z",
+      "actor_name": "User 102",
+      "performed_by": "User 102",
+      "actor_email": "user102@broadbeach.in",
+      "performed_by_email": "user102@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "SECURITY",
+      "module": "Admin Access",
+      "action": "ACCESS_CODE_EXHAUSTED",
+      "target_type": "certificate_access_code",
+      "target_id": "BBA-ONCE-SINGLE-USE",
+      "details": "Usage limit exhausted: code 'BBA-ONCE-SINGLE-USE' reached max uses (1/1).",
+      "status": "failure",
+      "outcome": "Rejected"
+    },
+    {
+      "id": "LOG-MVPJLOZ6-477",
+      "timestamp": "2026-10-26T17:40:41.778Z",
+      "created_at": "2026-10-26T17:40:41.778Z",
+      "actor_name": "User 101",
+      "performed_by": "User 101",
+      "actor_email": "user101@broadbeach.in",
+      "performed_by_email": "user101@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "CERTIFICATE",
+      "module": "Online Cert Master",
+      "action": "CERTIFICATE_ACCESS_CODE_REDEEMED",
+      "target_type": "online_certificate",
+      "target_id": "BOA332101189",
+      "details": "Valid certificate access code 'BBA-ONCE-SINGLE-USE' redeemed. Exam requirement waived and certificate BOA332101189 issued for ISO 14001:2026 Environmental Management System (EMS) Awareness.",
+      "status": "success",
+      "outcome": "Success"
+    },
+    {
+      "id": "LOG-MVPJLOYT-290",
+      "timestamp": "2026-10-26T17:40:41.765Z",
+      "created_at": "2026-10-26T17:40:41.765Z",
+      "actor_name": "Learner",
+      "performed_by": "Learner",
+      "actor_email": "learner@broadbeach.in",
+      "performed_by_email": "learner@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "SECURITY",
+      "module": "Admin Access",
+      "action": "ACCESS_CODE_MISMATCH",
+      "target_type": "certificate_access_code",
+      "target_id": "BBA-QMS-2026-PASS",
+      "details": "Course association mismatch: code 'BBA-QMS-2026-PASS' belongs to course 322 but attempted on course 332.",
+      "status": "failure",
+      "outcome": "Rejected"
+    },
+    {
+      "id": "LOG-MVPJLOYJ-651",
+      "timestamp": "2026-10-26T17:40:41.755Z",
+      "created_at": "2026-10-26T17:40:41.755Z",
+      "actor_name": "Learner",
+      "performed_by": "Learner",
+      "actor_email": "learner@broadbeach.in",
+      "performed_by_email": "learner@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "SECURITY",
+      "module": "Admin Access",
+      "action": "ACCESS_CODE_REJECTED",
+      "target_type": "certificate_access_code",
+      "target_id": "BBA-REVOKED-CODE",
+      "details": "Attempted to use inactive/revoked code 'BBA-REVOKED-CODE' (status: revoked) for course ID 332.",
+      "status": "failure",
+      "outcome": "Rejected"
+    },
+    {
+      "id": "LOG-MVPJLOXX-604",
+      "timestamp": "2026-10-26T17:40:41.733Z",
+      "created_at": "2026-10-26T17:40:41.733Z",
+      "actor_name": "Learner",
+      "performed_by": "Learner",
+      "actor_email": "learner@broadbeach.in",
+      "performed_by_email": "learner@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "SECURITY",
+      "module": "Admin Access",
+      "action": "ACCESS_CODE_REJECTED",
+      "target_type": "certificate_access_code",
+      "target_id": "BBA-EXP-EXPIRED-CODE",
+      "details": "Attempted to use expired code 'BBA-EXP-EXPIRED-CODE' (expired on: 2025-01-01T00:00:00.000Z) for course ID 332.",
+      "status": "failure",
+      "outcome": "Rejected"
+    },
+    {
+      "id": "LOG-MVPJLOXN-329",
+      "timestamp": "2026-10-26T17:40:41.723Z",
+      "created_at": "2026-10-26T17:40:41.723Z",
+      "actor_name": "Learner",
+      "performed_by": "Learner",
+      "actor_email": "learner@broadbeach.in",
+      "performed_by_email": "learner@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "SECURITY",
+      "module": "Admin Access",
+      "action": "ACCESS_CODE_REJECTED",
+      "target_type": "certificate_access_code",
+      "target_id": "FAKE-INVALID-CODE-999",
+      "details": "Invalid certificate access code attempt: 'FAKE-INVALID-CODE-999' for course ID 332 from IP ::1.",
+      "status": "failure",
+      "outcome": "Rejected"
+    },
+    {
+      "id": "LOG-MVPJLOWY-404",
+      "timestamp": "2026-10-26T17:40:41.698Z",
+      "created_at": "2026-10-26T17:40:41.698Z",
+      "actor_name": "Siddarth GVH",
+      "performed_by": "Siddarth GVH",
+      "actor_email": "siddarth@broadbeach.in",
+      "performed_by_email": "siddarth@broadbeach.in",
+      "actor_role": "student",
+      "action_category": "CERTIFICATE",
+      "module": "Online Cert Master",
+      "action": "CERTIFICATE_ACCESS_CODE_REDEEMED",
+      "target_type": "online_certificate",
+      "target_id": "BOA33213229",
+      "details": "Valid certificate access code 'BBA-EMS-2026-VIP' redeemed. Exam requirement waived and certificate BOA33213229 issued for ISO 14001:2026 Environmental Management System (EMS) Awareness.",
+      "status": "success",
+      "outcome": "Success"
+    },
+    {
+      "id": "LOG-1001",
+      "timestamp": "2026-10-24T10:30:00.000Z",
+      "actor_name": "Administrator",
+      "actor_email": "admin@broadbeachlearning.com",
+      "actor_role": "super_admin",
+      "action_category": "AUTH",
+      "action": "ADMIN_LOGIN",
+      "target_type": "admin_session",
+      "target_id": "admin@broadbeachlearning.com",
+      "details": "Administrator logged in successfully from 127.0.0.1"
+    },
+    {
+      "id": "LOG-1002",
+      "timestamp": "2026-10-22T21:32:14.000Z",
+      "actor_name": "LMS Automated Engine",
+      "actor_email": "system@broadbeach.in",
+      "actor_role": "system",
+      "action_category": "CERTIFICATE",
+      "action": "ONLINE_CERT_ISSUED",
+      "target_type": "online_certificate",
+      "target_id": "BOA10118",
+      "details": "Online certificate BOA10118 issued to QA Tester for ISO 14001:2026 (Score: 100%)."
+    },
+    {
+      "id": "LOG-1003",
+      "timestamp": "2026-10-20T09:45:00.000Z",
+      "actor_name": "Sarah Jenkins",
+      "actor_email": "cert.manager@broadbeach.in",
+      "actor_role": "cert_manager",
+      "action_category": "CERTIFICATE",
+      "action": "MANUAL_CERT_CREATED",
+      "target_type": "manual_certificate",
+      "target_id": "BBA-M-2026-0012",
+      "details": "Created manual certificate BBA-M-2026-0012 for Meera Krishnan (ISO 45001:2018 Lead Auditor)."
+    },
+    {
+      "id": "LOG-1004",
+      "timestamp": "2026-10-18T14:35:00.000Z",
+      "actor_name": "Administrator",
+      "actor_email": "admin@broadbeachlearning.com",
+      "actor_role": "super_admin",
+      "action_category": "CERTIFICATE",
+      "action": "MANUAL_CERT_CREATED",
+      "target_type": "manual_certificate",
+      "target_id": "BBA-M-2026-0011",
+      "details": "Created manual certificate BBA-M-2026-0011 for Anand Sundaram (ISO 27001:2022 Lead Implementer)."
+    },
+    {
+      "id": "LOG-1005",
+      "timestamp": "2026-10-22T10:14:00.000Z",
+      "actor_name": "Administrator",
+      "actor_email": "admin@broadbeachlearning.com",
+      "actor_role": "super_admin",
+      "action_category": "TRASH",
+      "action": "TRASH_RECORD_MOVED",
+      "target_type": "ticket",
+      "target_id": "TCK-2026-0099",
+      "details": "Soft-deleted test ticket TCK-2026-0099 to Trash Bin."
+    }
+  ],
+  "certificate_access_codes": [
+    {
+      "id": 1,
+      "code": "BBA-EMS-2026-VIP",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "status": "active",
+      "max_uses": 50,
+      "used_count": 1,
+      "expires_at": "2027-12-31T23:59:59.000Z",
+      "created_at": "2026-10-26T12:00:00.000Z",
+      "description": "Authorized Exam Bypass Code for ISO 14001 EMS"
+    },
+    {
+      "id": 2,
+      "code": "BBA-QMS-2026-PASS",
+      "course_id": 322,
+      "course_name": "ISO 9001:2026 Quality Management System (QMS) Awareness",
+      "status": "active",
+      "max_uses": 50,
+      "used_count": 0,
+      "expires_at": "2027-12-31T23:59:59.000Z",
+      "created_at": "2026-10-26T12:00:00.000Z",
+      "description": "Authorized Exam Bypass Code for ISO 9001 QMS"
+    },
+    {
+      "id": 3,
+      "code": "BBA-EXP-EXPIRED-CODE",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "status": "active",
+      "max_uses": 10,
+      "used_count": 0,
+      "expires_at": "2025-01-01T00:00:00.000Z",
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "description": "Test Expired Code"
+    },
+    {
+      "id": 4,
+      "code": "BBA-REVOKED-CODE",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "status": "revoked",
+      "max_uses": 10,
+      "used_count": 0,
+      "expires_at": "2027-12-31T23:59:59.000Z",
+      "created_at": "2026-10-26T12:00:00.000Z",
+      "description": "Test Administratively Revoked Code"
+    },
+    {
+      "id": 5,
+      "code": "BBA-ONCE-SINGLE-USE",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "status": "active",
+      "max_uses": 1,
+      "used_count": 1,
+      "expires_at": "2027-12-31T23:59:59.000Z",
+      "created_at": "2026-10-26T12:00:00.000Z",
+      "description": "Test Single-Use Code"
+    }
+  ],
+  "certificate_coupon_redemptions": [
+    {
+      "id": "RED-MVPJLOZ6-642",
+      "coupon_id": 5,
+      "code": "BBA-ONCE-SINGLE-USE",
+      "user_id": 101,
+      "student_name": "User 101",
+      "candidate_email": "user101@broadbeach.in",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "certificate_number": "BOA332101189",
+      "certificate_id": 13,
+      "exam_bypassed": true,
+      "redeemed_at": "2026-10-26T17:40:41.778Z"
+    },
+    {
+      "id": "RED-MVPJLOWY-998",
+      "coupon_id": 1,
+      "code": "BBA-EMS-2026-VIP",
+      "user_id": 13,
+      "student_name": "Siddarth GVH",
+      "candidate_email": "siddarth@broadbeach.in",
+      "course_id": 332,
+      "course_name": "ISO 14001:2026 Environmental Management System (EMS) Awareness",
+      "certificate_number": "BOA33213229",
+      "certificate_id": 12,
+      "exam_bypassed": true,
+      "redeemed_at": "2026-10-26T17:40:41.697Z"
+    }
+  ]
+}

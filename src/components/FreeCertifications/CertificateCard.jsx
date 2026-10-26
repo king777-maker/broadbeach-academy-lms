@@ -1,0 +1,155 @@
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { useAuthPrompt } from "../../context/AuthPromptContext";
+import toast from "react-hot-toast";
+import { FaUserFriends, FaStar, FaArrowRight } from "react-icons/fa";
+import { getAuthoritativeCourseName } from "../../data/freeCoursesData";
+
+const CertificateCard = ({ certificate }) => {
+    const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuth();
+    const { requireAuth } = useAuthPrompt();
+
+    const handleEnroll = () => {
+        const dest = `/enroll/${certificate.id}`;
+        if (!requireAuth({
+            courseId: certificate.id,
+            title: certificate.name,
+            destination: dest,
+        })) {
+            return;
+        }
+        navigate(dest);
+    };
+
+    const formatStudents = (value) => {
+        const students = parseInt(value, 10);
+        if (Number.isNaN(students)) return "0";
+        if (students >= 1000000) return `${(students / 1000000).toFixed(1).replace(".0", "")}M`;
+        if (students >= 1000) return `${(students / 1000).toFixed(1).replace(".0", "")}k`;
+        return students.toString();
+    };
+
+    const formatRating = (value) => {
+        const rating = Number(value || 0);
+        return rating.toFixed(1);
+    };
+
+    return (
+        <div
+            onClick={handleEnroll}
+            className="
+                group
+                bg-white
+                rounded-2xl
+                overflow-hidden
+                border border-slate-200/80
+                shadow-[0_2px_10px_rgba(16,43,78,0.04)]
+                hover:shadow-[0_12px_28px_rgba(16,43,78,0.10)]
+                hover:-translate-y-1
+                transition-all duration-300
+                w-full
+                flex flex-col
+                cursor-pointer
+                h-full
+            "
+        >
+            {/* 16:9 THUMBNAIL CONTAINER */}
+            <div className="relative overflow-hidden aspect-[16/9] bg-slate-100">
+                <img
+                    src={certificate.image}
+                    alt={certificate.name}
+                    className="
+                        w-full h-full
+                        object-cover
+                        transition-transform duration-500
+                        group-hover:scale-105
+                    "
+                />
+                
+                {/* Subtle Overlay on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#102B4E]/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                {/* CHAMPAGNE GOLD & NAVY BADGE */}
+                <div
+                    className="
+                        absolute top-3 right-3
+                        bg-[#102B4E]/90 backdrop-blur-md text-[#E8B95D]
+                        text-[10px] font-extrabold
+                        uppercase tracking-wider
+                        px-2.5 py-1 rounded-md
+                        border border-[#E8B95D]/30
+                        shadow-sm
+                    "
+                >
+                    Free Certification
+                </div>
+            </div>
+
+            {/* CONTENT BODY */}
+            <div className="p-5 flex flex-col flex-1 bg-white">
+                
+                {/* CATEGORY TAG */}
+                <div className="mb-2">
+                    <span className="text-[10px] font-bold text-[#102B4E] bg-[#F7F5F0] px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block border border-slate-200/60">
+                        {certificate.category || "Online Certification"}
+                    </span>
+                </div>
+
+                {/* TITLE */}
+                <h3 className="text-base font-bold text-[#102B4E] leading-snug min-h-[44px] line-clamp-2 group-hover:text-[#4F46E5] transition-colors">
+                    {getAuthoritativeCourseName(certificate.id, certificate.name)}
+                </h3>
+
+                {/* DESCRIPTION */}
+                <p className="mt-1.5 text-xs text-slate-500 leading-relaxed line-clamp-2 min-h-[36px]">
+                    {certificate.description}
+                </p>
+
+                {/* STATS & ENROLL BUTTON */}
+                <div className="mt-auto pt-4">
+                    {/* STATS BAR */}
+                    <div className="bg-[#F7F5F0] rounded-xl p-2.5 flex items-center justify-between gap-2 mb-3.5 border border-slate-200/60">
+                        {/* STUDENTS */}
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold px-2">
+                            <FaUserFriends className="text-slate-400 text-xs" />
+                            <span>{formatStudents(certificate.students_count || certificate.students)} Learners</span>
+                        </div>
+
+                        {/* RATING */}
+                        <div className="flex items-center gap-1 text-xs text-slate-700 font-semibold px-2 border-l border-slate-200">
+                            <FaStar className="text-[#E8B95D] text-xs" />
+                            <span>{formatRating(certificate.rating)}</span>
+                        </div>
+                    </div>
+
+                    {/* ENROLL BUTTON */}
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleEnroll();
+                        }}
+                        className="
+                            w-full
+                            bg-[#102B4E] group-hover:bg-[#4F46E5]
+                            text-white
+                            py-2.5 px-4
+                            rounded-xl
+                            text-xs font-bold
+                            shadow-xs group-hover:shadow-indigo-500/20
+                            transition-all duration-200
+                            cursor-pointer
+                            flex items-center justify-center gap-2
+                        "
+                    >
+                        <span>Enroll Now</span>
+                        <FaArrowRight className="text-[10px] group-hover:translate-x-1 transition-transform" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default CertificateCard;

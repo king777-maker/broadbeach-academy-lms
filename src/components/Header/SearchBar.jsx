@@ -1,0 +1,151 @@
+import React, { useState, useRef, useEffect } from "react";
+import { FaSearch, FaTimes, FaGraduationCap, FaChevronRight } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { navigationCategories } from "../../data/coursesData";
+
+const SearchBar = ({ onSelectCourse }) => {
+  const [query, setQuery] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const [results, setResults] = useState([]);
+  const containerRef = useRef(null);
+
+  // Flatten all courses for search
+  const allCourses = React.useMemo(() => {
+    return navigationCategories.flatMap((cat) =>
+      cat.courses.map((course) => ({
+        ...course,
+        categoryTitle: cat.title,
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+    const q = query.toLowerCase().trim();
+    const filtered = allCourses.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.category.toLowerCase().includes(q) ||
+        c.categoryTitle.toLowerCase().includes(q)
+    );
+    setResults(filtered.slice(0, 6));
+  }, [query, allCourses]);
+
+  // Click outside and Esc key listener
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsFocused(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const handleClear = () => {
+    setQuery("");
+    setResults([]);
+  };
+
+  return (
+    <div ref={containerRef} className="relative z-40">
+      <div
+        className={`flex items-center h-[34px] sm:h-[36px] px-2 sm:px-3 rounded-xl transition-all duration-300 ${
+          isFocused
+            ? "w-36 min-[360px]:w-48 sm:w-60 lg:w-72 bg-white/20 border-white/40 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ring-2 ring-white/30"
+            : "w-20 min-[360px]:w-28 sm:w-44 lg:w-56 bg-white/10 hover:bg-white/15 border-white/20"
+        } border`}
+      >
+        <FaSearch className="text-white/80 text-[11px] flex-shrink-0 mr-1.5 sm:mr-2" />
+        <input
+          type="text"
+          value={query}
+          aria-label="Search certifications and courses"
+          onFocus={() => setIsFocused(true)}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search..."
+          className="w-full min-w-0 bg-transparent text-white placeholder-white/75 text-xs outline-none font-medium"
+        />
+        {query && (
+          <button
+            type="button"
+            aria-label="Clear search input"
+            onClick={handleClear}
+            className="text-white/80 hover:text-white p-0.5 ml-1 cursor-pointer"
+          >
+            <FaTimes className="text-[10px]" />
+          </button>
+        )}
+      </div>
+
+      {/* Autocomplete / Live Search Results Dropdown */}
+      {isFocused && query.trim() && (
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-20px)] max-w-[360px] sm:max-w-[380px] bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200/90 overflow-hidden animate-fadeInSlideDown">
+          <div className="p-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
+            <span>Search Results ({results.length})</span>
+            {results.length > 0 && <span className="text-blue-600">Press Esc to close</span>}
+          </div>
+
+          <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100 custom-dropdown-scroll">
+            {results.length > 0 ? (
+              results.map((course) => (
+                <Link
+                  key={course.id}
+                  to={`/courses/${course.id}`}
+                  onClick={() => {
+                    setIsFocused(false);
+                    if (onSelectCourse) onSelectCourse(course);
+                  }}
+                  className="p-3 flex items-start gap-3 hover:bg-blue-50/70 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <FaGraduationCap className="text-sm" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                        {course.code}
+                      </span>
+                      <span className="text-[10.5px] text-slate-400 truncate">
+                        {course.categoryTitle}
+                      </span>
+                    </div>
+                    <h5 className="text-xs font-semibold text-slate-800 group-hover:text-blue-700 truncate">
+                      {course.title}
+                    </h5>
+                    <p className="text-[10.5px] text-slate-500 mt-0.5">
+                      Duration: {course.duration} • Level: {course.level}
+                    </p>
+                  </div>
+                  <FaChevronRight className="text-slate-300 group-hover:text-blue-600 text-[10px] self-center ml-1" />
+                </Link>
+              ))
+            ) : (
+              <div className="p-6 text-center text-xs text-slate-500">
+                No matching certifications found for "{query}".
+                <div className="mt-2 text-[11px] text-blue-600">
+                  Try searching for "ISO", "Defense", "Auditor", or "Lead".
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SearchBar;

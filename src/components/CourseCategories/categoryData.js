@@ -1,0 +1,246 @@
+import {
+    Laptop,
+    BriefcaseBusiness,
+    Palette,
+    HeartPulse,
+    Globe,
+    Network,
+    Megaphone,
+    TrendingUp,
+    Camera,
+    Music,
+    Settings,
+    ClipboardList,
+    Monitor,
+    ShieldCheck,
+    Calculator,
+    Shield,
+    GraduationCap,
+    BookOpen,
+} from "lucide-react";
+
+const categoryData = [
+
+    {
+        id: 1,
+        number: "01",
+        title: "Free Courses",
+        courses: 24,
+        icon: Laptop,
+        color: "#2563EB",
+        image: "https://picsum.photos/seed/free-courses/800/600",
+        link: "/category/free-courses",
+    },
+
+    {
+        id: 2,
+        number: "02",
+        title: "Internal Auditor",
+        courses: 18,
+        icon: BriefcaseBusiness,
+        color: "#10B981",
+        image: "https://picsum.photos/seed/internal-auditor/800/600",
+        link: "/category/internal-auditor",
+    },
+
+    {
+        id: 3,
+        number: "03",
+        title: "Lead Auditor",
+        courses: 15,
+        icon: Palette,
+        color: "#7C3AED",
+        image: "https://picsum.photos/seed/lead-auditor/800/600",
+        link: "/category/lead-auditor",
+    },
+
+    {
+        id: 4,
+        number: "04",
+        title: "Lean Six Sigma",
+        courses: 12,
+        icon: HeartPulse,
+        color: "#EF4444",
+        image: "https://picsum.photos/seed/lean-six-sigma/800/600",
+        link: "/category/lean-six-sigma",
+    },
+
+    {
+        id: 5,
+        number: "05",
+        title: "Health & Safety",
+        courses: 21,
+        icon: Globe,
+        color: "#F97316",
+        image: "https://picsum.photos/seed/health-safety/800/600",
+        link: "/category/health-safety-hse",
+    },
+
+    {
+        id: 6,
+        number: "06",
+        title: "Environment",
+        courses: 16,
+        icon: Network,
+        color: "#06B6D4",
+        image: "https://picsum.photos/seed/environment/800/600",
+        link: "/category/environment",
+    },
+
+    {
+        id: 7,
+        number: "07",
+        title: "Professional Certifications",
+        courses: 19,
+        icon: Megaphone,
+        color: "#EC4899",
+        image: "https://picsum.photos/seed/professional-certifications/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 8,
+        number: "08",
+        title: "Quality Assurance",
+        courses: 14,
+        icon: TrendingUp,
+        color: "#059669",
+        image: "https://picsum.photos/seed/quality-assurance/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 9,
+        number: "09",
+        title: "Business Management",
+        courses: 11,
+        icon: Camera,
+        color: "#64748B",
+        image: "https://picsum.photos/seed/business-management/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 10,
+        number: "10",
+        title: "Aerospace & Defence",
+        courses: 13,
+        icon: Music,
+        color: "#6D28D9",
+        image: "https://picsum.photos/seed/aerospace-defence/800/600",
+        link: "/category/aerospace",
+    },
+
+    {
+        id: 11,
+        number: "11",
+        title: "Automotive Industry",
+        courses: 22,
+        icon: Settings,
+        color: "#6B7280",
+        image: "https://picsum.photos/seed/automotive-industry/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 12,
+        number: "12",
+        title: "HR & Industrial Relations",
+        courses: 9,
+        icon: ClipboardList,
+        color: "#F59E0B",
+        image: "https://picsum.photos/seed/hr-industrial/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 13,
+        number: "13",
+        title: "Information Technology",
+        courses: 9,
+        icon: Monitor,
+        color: "#2563EB",
+        image: "https://picsum.photos/seed/information-technology/800/600",
+        link: "/category/information-security",
+    },
+
+    {
+        id: 14,
+        number: "14",
+        title: "Information Security",
+        courses: 9,
+        icon: ShieldCheck,
+        color: "#7C3AED",
+        image: "https://picsum.photos/seed/information-security/800/600",
+        link: "/category/information-security",
+    },
+
+    {
+        id: 15,
+        number: "15",
+        title: "Carbon Accounting",
+        courses: 9,
+        icon: Calculator,
+        color: "#059669",
+        image: "https://picsum.photos/seed/carbon-accounting/800/600",
+        link: "/category/environment",
+    },
+
+    {
+        id: 16,
+        number: "16",
+        title: "PoSH at Workplace",
+        courses: 9,
+        icon: Shield,
+        color: "#EC4899",
+        image: "https://picsum.photos/seed/posh-workplace/800/600",
+        link: "/category/professional-certifications",
+    },
+
+    {
+        id: 17,
+        number: "17",
+        title: "Managerial Programs",
+        courses: 9,
+        icon: GraduationCap,
+        color: "#F97316",
+        image: "https://picsum.photos/seed/managerial-programs/800/600",
+        link: "/category/management-certifications",
+    },
+
+    {
+        id: 18,
+        number: "18",
+        title: "Fresher and Entry Level",
+        courses: 9,
+        icon: BookOpen,
+        color: "#06B6D4",
+        image: "https://picsum.photos/seed/fresher-entry-level/800/600",
+        link: "#",
+    },
+
+    {
+        id: 19,
+        number: "19",
+        title: "Train the Trainner",
+        courses: 5,
+        icon: BookOpen,
+        color: "#06B6D4",
+        image: "https://picsum.photos/seed/train-the-trainer/800/600",
+        link: "#",
+    },
+
+    {
+        id: 20,
+        number: "20",
+        title: "QA/QC Program",
+        courses: 5,
+        icon: BookOpen,
+        color: "#06B6D4",
+        image: "https://picsum.photos/seed/qa-qc-program/800/600",
+        link: "#",
+    },
+
+];
+
+export default categoryData;
