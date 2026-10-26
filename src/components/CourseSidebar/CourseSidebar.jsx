@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import { FaFilter, FaRedo, FaCheck } from "react-icons/fa";
 
 const CATEGORIES = [
@@ -207,19 +206,6 @@ const CourseSidebar = ({
       </div>
     </div>
   );
-};
-
-CourseSidebar.propTypes = {
-  typeFilter: PropTypes.string,
-  selectedCategory: PropTypes.string,
-  selectedLevel: PropTypes.string,
-  onTypeFilterChange: PropTypes.func,
-  onCategoryChange: PropTypes.func,
-  onLevelChange: PropTypes.func,
-  onResetFilters: PropTypes.func,
-  totalCount: PropTypes.number,
-  freeCount: PropTypes.number,
-  paidCount: PropTypes.number,
 };
 
 export default CourseSidebar;
