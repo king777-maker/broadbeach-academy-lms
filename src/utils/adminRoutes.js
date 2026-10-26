@@ -48,7 +48,7 @@ export const ADMIN_BASE_PATH = (
 const rawLoginPath = (
   (typeof import.meta !== "undefined" && (import.meta.env?.VITE_ADMIN_LOGIN_PATH || import.meta.env?.ADMIN_LOGIN_PATH)) ||
   (typeof process !== "undefined" && (process.env?.ADMIN_LOGIN_PATH || process.env?.VITE_ADMIN_LOGIN_PATH)) ||
-  ""
+  "/secure-console/b6d8b052b31b0da511ed5279d22bd657b2247d24"
 ).trim().replace(/\/+$/, "");
 
 export const ADMIN_LOGIN_PATH = isValidAdminLoginPath(rawLoginPath) ? rawLoginPath : null;
