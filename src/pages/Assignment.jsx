@@ -715,8 +715,16 @@ const Assignment = () => {
                 if (passed) {
                     try {
                         const uId = targetUserId || resolveUserId();
+                        const authoritativeCourse = getAuthoritativeCourseName(
+                            assessmentId,
+                            catalogItem.course_title ||
+                                catalogItem.title ||
+                                "ISO Course"
+                        );
                         markCourseCompleted(uId, assessmentId, {
                             certificate_number: certificateNumber,
+                            student_name: targetStudentName || "Verified Learner",
+                            course_name: authoritativeCourse,
                             score,
                             total,
                             percentage,
@@ -887,8 +895,14 @@ const Assignment = () => {
                         if (isPassed) {
                             try {
                                 const uId = userId || resolveUserId();
+                                const authoritativeCourse = getAuthoritativeCourseName(
+                                    assessmentId,
+                                    result?.course_title || assessment?.course_title || assessment?.title || "ISO Course"
+                                );
                                 markCourseCompleted(uId, assessmentId, {
                                     certificate_number: result?.certificate_number,
+                                    student_name: studentName || "Verified Learner",
+                                    course_name: authoritativeCourse,
                                     score: result?.score,
                                     total: result?.total,
                                     percentage: result?.percentage

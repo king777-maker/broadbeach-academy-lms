@@ -19,6 +19,7 @@ import { jsPDF } from "jspdf";
 import toast from "react-hot-toast";
 import { getAuthoritativeCourseName } from "../data/freeCoursesData";
 import { markCourseCompleted } from "../utils/progressTracker";
+import { useAuth } from "../context/AuthContext";
 
 
 const Result = () => {
@@ -26,6 +27,7 @@ const Result = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const location = useLocation();
+    const { user: authUser } = useAuth();
 
     // Cache and retrieve assessment result across reloads
     const [state, setState] = useState(() => {
@@ -133,12 +135,35 @@ const Result = () => {
     const wrongAnswers =
         Number(total) - Number(score);
 
+    const getResolvedStudentName = () => {
+        if (studentName && typeof studentName === "string" && studentName.trim() && !["learner", "student", "test student", "candidate", "—"].includes(studentName.trim().toLowerCase())) {
+            return studentName.trim();
+        }
+        if (authUser) {
+            const authName = authUser.name || authUser.full_name || [authUser.first_name, authUser.last_name].filter(Boolean).join(" ").trim();
+            if (authName && authName.trim()) return authName.trim();
+        }
+        try {
+            const raw = localStorage.getItem("bb_user") || localStorage.getItem("user");
+            if (raw) {
+                const u = JSON.parse(raw);
+                const n = u.name || u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || u.username;
+                if (n && n.trim()) return n.trim();
+            }
+        } catch (e) {}
+        return studentName?.trim() || "Verified Learner";
+    };
+
+    const resolvedStudentName = getResolvedStudentName();
+
     useEffect(() => {
         if (isPassed && id) {
             try {
                 const uId = state?.userId || null;
                 markCourseCompleted(uId, id, {
                     certificate_number: state?.certificate_number || state?.certificate?.certificate_number,
+                    student_name: resolvedStudentName,
+                    course_name: authoritativeCourseName,
                     score,
                     total,
                     percentage
@@ -147,7 +172,7 @@ const Result = () => {
                 // Ignore
             }
         }
-    }, [isPassed, id, state, score, total, percentage]);
+    }, [isPassed, id, state, score, total, percentage, resolvedStudentName, authoritativeCourseName]);
 
 
     // =========================================================
@@ -164,13 +189,9 @@ const Result = () => {
             score: Number(score),
             total: Number(total),
             percentage: Number(percentage),
-
-            studentName:
-                studentName?.trim() ||
-                "Test Student",
-
-            courseName:
-                authoritativeCourseName || courseName || "",
+            studentName: resolvedStudentName,
+            courseName: authoritativeCourseName || courseName || "",
+            certificate_number: state?.certificate_number || state?.certificate?.certificate_number,
         };
 
         navigate(

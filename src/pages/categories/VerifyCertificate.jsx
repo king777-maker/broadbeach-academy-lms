@@ -37,6 +37,40 @@ const VerifyCertificate = () => {
   // RESOLVE BEST STUDENT NAME
   // =========================================================
 
+  const getLoggedInUserName = () => {
+    if (authUser) {
+      const fromAuth =
+        authUser.name ||
+        authUser.full_name ||
+        authUser.fullName ||
+        [authUser.first_name, authUser.last_name].filter(Boolean).join(" ").trim();
+      if (fromAuth && typeof fromAuth === "string" && fromAuth.trim()) {
+        return fromAuth.trim();
+      }
+    }
+
+    try {
+      const keys = ["bb_user", "user", "bb_admin_user"];
+      for (const k of keys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const u = JSON.parse(raw);
+          const name =
+            u.name ||
+            u.full_name ||
+            u.fullName ||
+            [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+            u.username;
+          if (name && typeof name === "string" && name.trim()) {
+            return name.trim();
+          }
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  };
+
   const resolveStudentName = (certRecord, candidateNumber) => {
     const isPlaceholder = (n) => {
       if (!n || typeof n !== "string") return true;
@@ -61,43 +95,19 @@ const VerifyCertificate = () => {
       return urlName.trim();
     }
 
-    // 1. Direct record name if valid non-placeholder
+    // 1. Direct logged-in user name (ensures verification page matches the active user identity)
+    const loggedInName = getLoggedInUserName();
+    if (loggedInName && !isPlaceholder(loggedInName)) {
+      return loggedInName;
+    }
+
+    // 2. Direct record name if valid non-placeholder
     const recordName = certRecord?.student_name || certRecord?.studentName;
     if (!isPlaceholder(recordName)) {
       return String(recordName).trim();
     }
 
-    // 2. AuthContext user if logged in
-    if (authUser) {
-      const authFull =
-        [authUser.first_name, authUser.last_name].filter(Boolean).join(" ").trim() ||
-        authUser.name ||
-        authUser.full_name ||
-        authUser.fullName;
-      if (!isPlaceholder(authFull)) {
-        return authFull.trim();
-      }
-    }
-
-    // 3. Stored user profile from localStorage
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem("bb_user") || localStorage.getItem("user") || "null"
-      );
-      if (stored) {
-        const storedName =
-          [stored.first_name, stored.last_name].filter(Boolean).join(" ").trim() ||
-          stored.name ||
-          stored.full_name ||
-          stored.fullName ||
-          stored.username;
-        if (!isPlaceholder(storedName)) {
-          return storedName.trim();
-        }
-      }
-    } catch (e) {}
-
-    // 4. Any bb_certificates in localStorage with a real name
+    // 3. Fallback to any bb_certificates in localStorage with a real name
     try {
       const allCerts = JSON.parse(localStorage.getItem("bb_certificates") || "[]");
       if (Array.isArray(allCerts)) {
@@ -110,7 +120,7 @@ const VerifyCertificate = () => {
       }
     } catch (e) {}
 
-    // 5. Check sessionStorage
+    // 4. Check sessionStorage
     try {
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
@@ -127,7 +137,7 @@ const VerifyCertificate = () => {
       }
     } catch (e) {}
 
-    return recordName || "Verified Learner";
+    return loggedInName || recordName || "Verified Learner";
   };
 
 

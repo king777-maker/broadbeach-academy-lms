@@ -438,15 +438,53 @@ export const markCourseCompleted = (userId, courseId, certData = {}) => {
 
     if (certData && certData.certificate_number) {
       const certs = JSON.parse(localStorage.getItem(CERT_STORAGE_KEY) || "[]");
-      if (!certs.some((c) => String(c.certification_id) === String(cId))) {
-        certs.push({
-          user_id: uId,
-          certification_id: cId,
-          ...certData,
-          completed_at: new Date().toISOString(),
-        });
-        localStorage.setItem(CERT_STORAGE_KEY, JSON.stringify(certs));
+      const existingIdx = certs.findIndex(
+        (c) =>
+          String(c.certification_id) === String(cId) ||
+          (c.certificate_number && c.certificate_number === certData.certificate_number)
+      );
+
+      // Resolve student name if missing or placeholder
+      let resolvedStudentName = certData.student_name || certData.studentName;
+      if (
+        !resolvedStudentName ||
+        ["learner", "student", "test student", "candidate", "—"].includes(
+          String(resolvedStudentName).trim().toLowerCase()
+        )
+      ) {
+        try {
+          const raw = localStorage.getItem("bb_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            resolvedStudentName =
+              u.name ||
+              u.full_name ||
+              [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+              u.username;
+          }
+        } catch (e) {}
       }
+
+      const certEntry = {
+        user_id: uId,
+        certification_id: cId,
+        course_id: cId,
+        course_name: certData.course_name || certData.course_title || `ISO Course ${cId}`,
+        student_name: resolvedStudentName || "Verified Learner",
+        status: "active",
+        verification_status: "Verified",
+        source: "online",
+        ...certData,
+        completed_at: new Date().toISOString(),
+        issued_at: new Date().toISOString(),
+      };
+
+      if (existingIdx >= 0) {
+        certs[existingIdx] = { ...certs[existingIdx], ...certEntry };
+      } else {
+        certs.unshift(certEntry);
+      }
+      localStorage.setItem(CERT_STORAGE_KEY, JSON.stringify(certs));
     }
 
     localStorage.setItem("bb_last_progress_update", JSON.stringify({
