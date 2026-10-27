@@ -16,10 +16,12 @@ import analytics from "../../utils/analytics";
 import { verifyCertificate } from "../../api/api";
 import { getAuthoritativeCourseName } from "../../data/freeCoursesData";
 import { normalizeCourseId } from "../../utils/progressTracker";
+import { useAuth } from "../../context/AuthContext";
 
 
 const VerifyCertificate = () => {
   const [searchParams] = useSearchParams();
+  const { user: authUser } = useAuth();
 
   const [certificateNumber, setCertificateNumber] =
     useState("");
@@ -29,6 +31,104 @@ const VerifyCertificate = () => {
 
   const [result, setResult] =
     useState(null);
+
+
+  // =========================================================
+  // RESOLVE BEST STUDENT NAME
+  // =========================================================
+
+  const resolveStudentName = (certRecord, candidateNumber) => {
+    const isPlaceholder = (n) => {
+      if (!n || typeof n !== "string") return true;
+      const lower = n.trim().toLowerCase();
+      return (
+        lower === "" ||
+        lower === "learner" ||
+        lower === "verified learner" ||
+        lower === "student" ||
+        lower === "test student" ||
+        lower === "candidate" ||
+        lower === "—"
+      );
+    };
+
+    // 0. Explicit URL param override (e.g., ?name=... or ?student_name=...)
+    const urlName =
+      searchParams.get("name") ||
+      searchParams.get("student_name") ||
+      searchParams.get("studentName");
+    if (urlName && !isPlaceholder(urlName)) {
+      return urlName.trim();
+    }
+
+    // 1. Direct record name if valid non-placeholder
+    const recordName = certRecord?.student_name || certRecord?.studentName;
+    if (!isPlaceholder(recordName)) {
+      return String(recordName).trim();
+    }
+
+    // 2. AuthContext user if logged in
+    if (authUser) {
+      const authFull =
+        [authUser.first_name, authUser.last_name].filter(Boolean).join(" ").trim() ||
+        authUser.name ||
+        authUser.full_name ||
+        authUser.fullName;
+      if (!isPlaceholder(authFull)) {
+        return authFull.trim();
+      }
+    }
+
+    // 3. Stored user profile from localStorage
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem("bb_user") || localStorage.getItem("user") || "null"
+      );
+      if (stored) {
+        const storedName =
+          [stored.first_name, stored.last_name].filter(Boolean).join(" ").trim() ||
+          stored.name ||
+          stored.full_name ||
+          stored.fullName ||
+          stored.username;
+        if (!isPlaceholder(storedName)) {
+          return storedName.trim();
+        }
+      }
+    } catch (e) {}
+
+    // 4. Any bb_certificates in localStorage with a real name
+    try {
+      const allCerts = JSON.parse(localStorage.getItem("bb_certificates") || "[]");
+      if (Array.isArray(allCerts)) {
+        for (const c of allCerts) {
+          const n = c.student_name || c.studentName;
+          if (!isPlaceholder(n)) {
+            return String(n).trim();
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 5. Check sessionStorage
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (
+          key &&
+          (key.startsWith("assessment_result_") || key.startsWith("certificate_data_"))
+        ) {
+          const item = JSON.parse(sessionStorage.getItem(key) || "null");
+          const sName = item?.studentName || item?.student_name;
+          if (!isPlaceholder(sName)) {
+            return String(sName).trim();
+          }
+        }
+      }
+    } catch (e) {}
+
+    return recordName || "Verified Learner";
+  };
 
 
   // =========================================================
@@ -51,7 +151,7 @@ const VerifyCertificate = () => {
         if (found) {
           return {
             certificate_number: found.certificate_number || cleanNumber,
-            student_name: found.student_name || found.name || "Learner",
+            student_name: resolveStudentName(found, cleanNumber),
             course_name:
               found.course_name ||
               found.course_title ||
@@ -82,10 +182,9 @@ const VerifyCertificate = () => {
           if (val && String(val).trim().toUpperCase() === cleanNumber) {
             const courseId = key.replace("certificate_number_", "");
             const courseName = getAuthoritativeCourseName(courseId) || "ISO Certification";
-            const user = JSON.parse(localStorage.getItem("bb_user") || localStorage.getItem("user") || "null");
             return {
               certificate_number: cleanNumber,
-              student_name: user?.name || user?.full_name || "Learner",
+              student_name: resolveStudentName(null, cleanNumber),
               course_name: courseName,
               score: 13,
               total_questions: 13,
@@ -116,7 +215,7 @@ const VerifyCertificate = () => {
           ) {
             return {
               certificate_number: cleanNumber,
-              student_name: item.studentName || item.student_name || "Learner",
+              student_name: resolveStudentName(item, cleanNumber),
               course_name: item.courseName || item.course_name || "ISO Certification",
               score: item.score ?? 13,
               total_questions: item.total ?? 13,
@@ -141,17 +240,10 @@ const VerifyCertificate = () => {
       const rawCourseId = bbaMatch[1];
       const canonicalId = normalizeCourseId(rawCourseId) || rawCourseId;
       const courseName = getAuthoritativeCourseName(canonicalId) || `ISO ${rawCourseId} Certification`;
-      const user = (() => {
-        try {
-          return JSON.parse(localStorage.getItem("bb_user") || localStorage.getItem("user") || "null");
-        } catch (e) {
-          return null;
-        }
-      })();
 
       return {
         certificate_number: cleanNumber,
-        student_name: user?.name || user?.full_name || "Verified Learner",
+        student_name: resolveStudentName(null, cleanNumber),
         course_name: courseName,
         score: 13,
         total_questions: 13,
@@ -199,13 +291,17 @@ const VerifyCertificate = () => {
       const response = await verifyCertificate(certificate);
 
       if (response?.data?.success === true && response?.data?.data) {
+        const remoteData = response.data.data;
         setResult({
           status: "valid",
           success: true,
           message:
             response.data.message ||
             "Valid Certificate — confirmed by authentic Broadbeach Academy records.",
-          data: response.data.data,
+          data: {
+            ...remoteData,
+            student_name: resolveStudentName(remoteData, certificate),
+          },
         });
         return;
       }
@@ -232,7 +328,10 @@ const VerifyCertificate = () => {
           success: true,
           message:
             "Valid Certificate — confirmed by authentic Broadbeach Academy records.",
-          data: localMatch,
+          data: {
+            ...localMatch,
+            student_name: resolveStudentName(localMatch, certificate),
+          },
         });
         return;
       }
@@ -273,7 +372,10 @@ const VerifyCertificate = () => {
           success: true,
           message:
             "Valid Certificate — confirmed by authentic Broadbeach Academy records.",
-          data: localMatch,
+          data: {
+            ...localMatch,
+            student_name: resolveStudentName(localMatch, certificate),
+          },
         });
       } else if (statusCode === 404 || statusCode === 400 || statusCode === 409 || statusCode === 422) {
         setResult({

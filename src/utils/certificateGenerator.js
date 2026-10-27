@@ -116,7 +116,8 @@ export async function renderCertificateCanvas({
   // 4. Dynamic Verification QR Code
   try {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const verifyUrl = `${origin}/verify-certificate?certificate_number=${encodeURIComponent(finalCertId)}`;
+    const nameParam = finalName && finalName !== "Student" ? `&name=${encodeURIComponent(finalName)}` : "";
+    const verifyUrl = `${origin}/verify-certificate?certificate_number=${encodeURIComponent(finalCertId)}${nameParam}`;
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
       width: 280,
       margin: 1,

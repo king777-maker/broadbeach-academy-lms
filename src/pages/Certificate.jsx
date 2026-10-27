@@ -46,6 +46,11 @@ const Certificate = () => {
         score = 0,
         total = 0,
         percentage = 0,
+        studentName = "",
+        student_name = "",
+        certificate_number = "",
+        courseName: passedCourseName = "",
+        course_name: passedCourse_name = "",
     } = location.state || {};
 
 
@@ -268,11 +273,25 @@ const Certificate = () => {
                     err?.message
                 );
 
-                const fallbackCertNumber = "BOA" + canonicalCourseId + (loggedInUser?.id || 13) + Math.floor(100 + Math.random() * 900);
+                const existingCertNumber =
+                    certificate_number ||
+                    location.state?.certificate_number ||
+                    localStorage.getItem(`certificate_number_${canonicalCourseId}`) ||
+                    sessionStorage.getItem(`certificate_number_${canonicalCourseId}`);
+
+                const fallbackCertNumber =
+                    existingCertNumber ||
+                    ("BBA-" + canonicalCourseId + "-" + Date.now().toString(36).toUpperCase());
+
+                const finalStudentName =
+                    (registeredName && registeredName.trim() !== "" && registeredName.toLowerCase() !== "learner")
+                        ? registeredName.trim()
+                        : (studentName || student_name || user?.name || user?.full_name || [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || "Learner");
+
                 const fallbackCertData = {
                     certificate_number: fallbackCertNumber,
-                    student_name: registeredName,
-                    course_name: getAuthoritativeCourseName(canonicalCourseId, certificationData?.name || certificationData?.title),
+                    student_name: finalStudentName,
+                    course_name: getAuthoritativeCourseName(canonicalCourseId, certificationData?.name || certificationData?.title || passedCourseName || passedCourse_name),
                     score: Number(score) || 10,
                     total: Number(total) || 10,
                     percentage: Number(percentage) || 100,
@@ -284,13 +303,16 @@ const Certificate = () => {
                 };
                 setCertificate(fallbackCertData);
 
-                // Save to local certificates store
+                // Save to local certificates store with accurate student name
                 try {
                     const certs = JSON.parse(localStorage.getItem("bb_certificates") || "[]");
-                    if (!certs.some(c => c.certificate_number === fallbackCertNumber)) {
+                    const existingIdx = certs.findIndex(c => c.certificate_number === fallbackCertNumber || String(c.certification_id) === String(canonicalCourseId));
+                    if (existingIdx >= 0) {
+                        certs[existingIdx] = { ...certs[existingIdx], ...fallbackCertData };
+                    } else {
                         certs.push(fallbackCertData);
-                        localStorage.setItem("bb_certificates", JSON.stringify(certs));
                     }
+                    localStorage.setItem("bb_certificates", JSON.stringify(certs));
                 } catch (ce) {}
 
                 return fallbackCertData;
@@ -302,6 +324,12 @@ const Certificate = () => {
             score,
             total,
             percentage,
+            registeredName,
+            studentName,
+            student_name,
+            certificate_number,
+            passedCourseName,
+            passedCourse_name,
         ]
     );
 
@@ -422,6 +450,13 @@ const Certificate = () => {
     // STUDENT NAME
     // =====================================================
 
+    const passedStudentName =
+        studentName ||
+        student_name ||
+        location.state?.studentName ||
+        location.state?.student_name ||
+        "";
+
     const registeredName = [
         user?.first_name,
         user?.last_name,
@@ -438,9 +473,11 @@ const Certificate = () => {
         ||
         user?.name
         ||
+        (passedStudentName && passedStudentName.trim() !== "" && passedStudentName.toLowerCase() !== "learner" ? passedStudentName.trim() : "")
+        ||
         certificate?.student_name
         ||
-        "";
+        "Student";
 
 
     // =====================================================
@@ -460,7 +497,8 @@ const Certificate = () => {
 
     useEffect(() => {
         if (certificateNumber) {
-            const verifyUrl = `${window.location.origin}/verify-certificate?certificate_number=${encodeURIComponent(certificateNumber)}`;
+            const nameParam = registeredName && registeredName !== "Student" ? `&name=${encodeURIComponent(registeredName)}` : "";
+            const verifyUrl = `${window.location.origin}/verify-certificate?certificate_number=${encodeURIComponent(certificateNumber)}${nameParam}`;
             QRCode.toDataURL(verifyUrl, {
                 width: 320,
                 margin: 1,
@@ -476,7 +514,7 @@ const Certificate = () => {
                     console.error("QR Code error:", err);
                 });
         }
-    }, [certificateNumber]);
+    }, [certificateNumber, registeredName]);
 
 
     // =====================================================
@@ -1249,13 +1287,14 @@ const Certificate = () => {
                     {/* VERIFY CREDENTIAL */}
                     <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                            const nameParam = registeredName && registeredName !== "Student" ? `&name=${encodeURIComponent(registeredName)}` : "";
                             navigate(
                                 `/verify-certificate?certificate_number=${encodeURIComponent(
                                     certificateNumber
-                                )}`
-                            )
-                        }
+                                )}${nameParam}`
+                            );
+                        }}
                         className="
                             inline-flex
                             items-center
