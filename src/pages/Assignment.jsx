@@ -679,6 +679,95 @@ const Assignment = () => {
 
 
     // =====================================================
+    // LOCAL GRADING EVALUATION HELPER
+    // =====================================================
+
+    const evaluateLocalGrading = useCallback(
+        (targetUserId, targetStudentName) => {
+            const catalogItem =
+                COURSE_ASSESSMENT_CATALOG[assessmentId] ||
+                getAssessmentForCourse(assessmentId) ||
+                getAssessmentForCourse(rawCourseKey) ||
+                COURSE_ASSESSMENT_CATALOG[322] ||
+                assessment;
+
+            if (catalogItem && Array.isArray(catalogItem.questions)) {
+                let score = 0;
+                const total = catalogItem.questions.length;
+                catalogItem.questions.forEach((q, idx) => {
+                    const qNum = idx + 1;
+                    const userAns = answers[qNum] || answers[q.id];
+                    if (
+                        userAns &&
+                        String(userAns).trim().toLowerCase() ===
+                        String(q.correct_answer || "").trim().toLowerCase()
+                    ) {
+                        score++;
+                    }
+                });
+
+                const percentage =
+                    total > 0 ? Math.round((score / total) * 100) : 0;
+                const passed =
+                    percentage >= (catalogItem.passing_percentage || 70);
+                const certificateNumber = `BBA-${assessmentId}-${Date.now().toString(36).toUpperCase()}`;
+
+                if (passed) {
+                    try {
+                        const uId = targetUserId || resolveUserId();
+                        markCourseCompleted(uId, assessmentId, {
+                            certificate_number: certificateNumber,
+                            score,
+                            total,
+                            percentage,
+                        });
+                    } catch (err) {
+                        console.error("Auto complete error:", err);
+                    }
+                }
+
+                try {
+                    sessionStorage.removeItem(answersStorageKey);
+                } catch (e) {
+                    // Ignore storage error
+                }
+
+                navigate(`/result/${assessmentId}`, {
+                    state: {
+                        userId: targetUserId,
+                        score: score,
+                        total: total,
+                        percentage: percentage,
+                        passingPercentage: catalogItem.passing_percentage || 70,
+                        passed: passed,
+                        certificate: passed,
+                        certificate_number: passed ? certificateNumber : null,
+                        courseName: getAuthoritativeCourseName(
+                            assessmentId,
+                            catalogItem.course_title ||
+                                catalogItem.title ||
+                                "ISO Course"
+                        ),
+                        studentName: targetStudentName || "Learner",
+                        certificationId: assessmentId,
+                    },
+                });
+                return true;
+            }
+
+            return false;
+        },
+        [
+            answers,
+            assessmentId,
+            rawCourseKey,
+            assessment,
+            answersStorageKey,
+            navigate,
+        ]
+    );
+
+    // =====================================================
     // SUBMIT ASSESSMENT
     // =====================================================
 
@@ -690,6 +779,25 @@ const Assignment = () => {
                     return;
                 }
 
+                const loggedInUser =
+                    getLoggedInUser();
+
+                const userId =
+                    Number(
+                        loggedInUser?.id ||
+                        loggedInUser?.user_id ||
+                        loggedInUser?.userId ||
+                        resolveUserId() ||
+                        13
+                    );
+
+                const studentName =
+                    loggedInUser?.name ||
+                    loggedInUser?.full_name ||
+                    loggedInUser?.fullName ||
+                    loggedInUser?.username ||
+                    loggedInUser?.email ||
+                    "Learner";
 
                 try {
 
@@ -697,69 +805,38 @@ const Assignment = () => {
                         true
                     );
 
-
-                    const loggedInUser =
-                        getLoggedInUser();
-
-                    const userId =
-                        Number(
-                            loggedInUser?.id ||
-                            loggedInUser?.user_id ||
-                            loggedInUser?.userId ||
-                            resolveUserId() ||
-                            13
-                        );
-
-
-                    const studentName =
-                        loggedInUser.name ||
-                        loggedInUser.full_name ||
-                        loggedInUser.fullName ||
-                        loggedInUser.username ||
-                        loggedInUser.email ||
-                        "Student";
-
-
                     const submissionAnswers =
                         prepareSubmissionAnswers();
-
 
                     console.log(
                         "================================="
                     );
-
 
                     console.log(
                         "FINAL ANSWERS:",
                         answers
                     );
 
-
                     console.log(
                         "FINAL ANSWER COUNT:",
                         answeredCount
                     );
-
 
                     console.log(
                         "TOTAL QUESTIONS:",
                         questions.length
                     );
 
-
                     console.log(
                         "SUBMISSION ANSWERS:",
                         submissionAnswers
                     );
 
-
                     console.log(
                         "================================="
                     );
 
-
                     const submissionData = {
-
                         user_id:
                             userId,
 
@@ -771,134 +848,69 @@ const Assignment = () => {
 
                         answers:
                             submissionAnswers,
-
                     };
 
+                    let response = null;
+                    try {
+                        response =
+                            await submitAssessment(
+                                submissionData
+                            );
 
-                    const response =
-                        await submitAssessment(
-                            submissionData
+                        console.log(
+                            "ASSESSMENT RESPONSE:",
+                            response?.data
                         );
-
-
-                    console.log(
-                        "ASSESSMENT RESPONSE:",
-                        response?.data
-                    );
-
+                    } catch (apiErr) {
+                        console.warn(
+                            "Submit Assessment API/Network Error, evaluating with local catalog:",
+                            apiErr
+                        );
+                    }
 
                     if (
-                        !response?.data?.success
+                        response?.data?.success
                     ) {
-
-                        alert(
-                            response?.data?.message ||
-                            "Unable to submit assessment."
-                        );
-
-                        return;
-                    }
-
-
-                    sessionStorage.removeItem(
-                        answersStorageKey
-                    );
-
-
-                    const result =
-                        response?.data?.data;
-
-                    // BB_AUTO_COMPLETE_ON_PASS
-                    const isPassed = Boolean(response?.data?.passed || result?.result === "pass" || result?.status === "pass" || result?.status === "passed" || result?.passed || result?.certificate || (result?.score !== undefined && result?.total && (Number(result.score) / Number(result.total)) >= 0.7));
-                    if (isPassed) {
                         try {
-                            const uId = userId || resolveUserId();
-                            markCourseCompleted(uId, assessmentId, {
-                                certificate_number: result?.certificate_number,
-                                score: result?.score,
-                                total: result?.total,
-                                percentage: result?.percentage
-                            });
-                        } catch (err) {
-                            console.error("Auto complete error:", err);
+                            sessionStorage.removeItem(
+                                answersStorageKey
+                            );
+                        } catch (e) {
+                            // Ignore storage cleanup error
                         }
-                    }
 
+                        const result =
+                            response?.data?.data;
 
-                    navigate(
-                        `/result/${assessmentId}`,
-                        {
-                            state: {
-                                userId: userId,
-                                score: result?.score,
-                                total: result?.total,
-                                percentage: result?.percentage,
-                                passingPercentage: result?.passing_percentage || 70,
-                                passed: isPassed,
-                                certificate: result?.certificate,
-                                certificate_number: result?.certificate_number,
-                                courseName: getAuthoritativeCourseName(assessmentId, result?.course_title || assessment?.course_title || assessment?.title || "ISO Course"),
-                                studentName: studentName || "Learner",
-                                certificationId: assessmentId,
-                            },
-                        }
-                    );
-
-                } catch (error) {
-                    console.warn(
-                        "Submit Assessment Network Error, evaluating with local catalog:",
-                        error
-                    );
-
-                    const catalogItem =
-                        COURSE_ASSESSMENT_CATALOG[assessmentId] ||
-                        getAssessmentForCourse(assessmentId) ||
-                        getAssessmentForCourse(rawCourseKey) ||
-                        assessment;
-
-                    if (catalogItem && Array.isArray(catalogItem.questions)) {
-                        let score = 0;
-                        const total = catalogItem.questions.length;
-                        catalogItem.questions.forEach((q, idx) => {
-                            const qNum = idx + 1;
-                            const userAns = answers[qNum] || answers[q.id];
-                            if (userAns && String(userAns).trim().toLowerCase() === String(q.correct_answer || "").trim().toLowerCase()) {
-                                score++;
-                            }
-                        });
-                        const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-                        const passed = percentage >= (catalogItem.passing_percentage || 70);
-                        const certificateNumber = `BBA-${assessmentId}-${Date.now().toString(36).toUpperCase()}`;
-
-                        if (passed) {
+                        // BB_AUTO_COMPLETE_ON_PASS
+                        const isPassed = Boolean(response?.data?.passed || result?.result === "pass" || result?.status === "pass" || result?.status === "passed" || result?.passed || result?.certificate || (result?.score !== undefined && result?.total && (Number(result.score) / Number(result.total)) >= 0.7));
+                        if (isPassed) {
                             try {
                                 const uId = userId || resolveUserId();
                                 markCourseCompleted(uId, assessmentId, {
-                                    certificate_number: certificateNumber,
-                                    score,
-                                    total,
-                                    percentage
+                                    certificate_number: result?.certificate_number,
+                                    score: result?.score,
+                                    total: result?.total,
+                                    percentage: result?.percentage
                                 });
                             } catch (err) {
                                 console.error("Auto complete error:", err);
                             }
                         }
 
-                        sessionStorage.removeItem(answersStorageKey);
-
                         navigate(
                             `/result/${assessmentId}`,
                             {
                                 state: {
                                     userId: userId,
-                                    score: score,
-                                    total: total,
-                                    percentage: percentage,
-                                    passingPercentage: catalogItem.passing_percentage || 70,
-                                    passed: passed,
-                                    certificate: passed,
-                                    certificate_number: passed ? certificateNumber : null,
-                                    courseName: getAuthoritativeCourseName(assessmentId, catalogItem.course_title || catalogItem.title || "ISO Course"),
+                                    score: result?.score,
+                                    total: result?.total,
+                                    percentage: result?.percentage,
+                                    passingPercentage: result?.passing_percentage || 70,
+                                    passed: isPassed,
+                                    certificate: result?.certificate,
+                                    certificate_number: result?.certificate_number,
+                                    courseName: getAuthoritativeCourseName(assessmentId, result?.course_title || assessment?.course_title || assessment?.title || "ISO Course"),
                                     studentName: studentName || "Learner",
                                     certificationId: assessmentId,
                                 },
@@ -907,11 +919,29 @@ const Assignment = () => {
                         return;
                     }
 
-                    alert(
-                        error?.response?.data?.message ||
-                        error?.message ||
-                        "Unable to submit assessment."
+                    // Fallback to local catalog grading
+                    const handledLocally = evaluateLocalGrading(userId, studentName);
+                    if (!handledLocally) {
+                        alert(
+                            response?.data?.message ||
+                            "Unable to submit assessment."
+                        );
+                    }
+
+                } catch (error) {
+                    console.warn(
+                        "Submit Assessment Error, evaluating with local catalog:",
+                        error
                     );
+
+                    const handledLocally = evaluateLocalGrading(userId, studentName);
+                    if (!handledLocally) {
+                        alert(
+                            error?.response?.data?.message ||
+                            error?.message ||
+                            "Unable to submit assessment."
+                        );
+                    }
 
                 } finally {
 
@@ -922,13 +952,15 @@ const Assignment = () => {
 
             },
             [
+                submitting,
                 answers,
                 answeredCount,
-                questions,
+                questions.length,
                 assessmentId,
-                navigate,
-                submitting,
+                assessment,
                 answersStorageKey,
+                navigate,
+                evaluateLocalGrading,
             ]
         );
 
