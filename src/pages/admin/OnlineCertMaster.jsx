@@ -57,82 +57,39 @@ const OnlineCertMaster = () => {
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pendingPinAction, setPendingPinAction] = useState(null);
 
-  // Load online certificates
+  const [fetchError, setFetchError] = useState(null);
+
+  // Load online certificates authoritatively from backend
   const fetchCertificates = async () => {
     try {
       setLoading(true);
+      setFetchError(null);
+      const res = await getOnlineCertificates({
+        search,
+        status: statusFilter,
+        course: courseFilter,
+      });
+
       let list = [];
-      try {
-        const res = await getOnlineCertificates({
-          search,
-          status: statusFilter,
-          course: courseFilter,
-        });
-        if (res?.data && Array.isArray(res.data)) {
-          list = res.data;
-        } else if (res?.data?.data && Array.isArray(res.data.data)) {
-          list = res.data.data;
-        }
-      } catch (apiErr) {
-        console.warn("API getOnlineCertificates unavailable, loading local registry:", apiErr.message || apiErr);
-      }
-
-      // Merge local certificates stored in localStorage
-      try {
-        const localCerts = JSON.parse(localStorage.getItem("bb_certificates") || "[]");
-        if (Array.isArray(localCerts) && localCerts.length > 0) {
-          const map = new Map();
-          localCerts.forEach((lc, idx) => {
-            const num = lc.certificate_number || lc.certificateId || lc.id;
-            if (num) {
-              const key = String(num).trim().toUpperCase();
-              map.set(key, {
-                id: lc.id || `local_${idx}_${num}`,
-                certificate_number: num,
-                student_name: lc.student_name || lc.studentName || "Verified Learner",
-                course_name: lc.course_name || lc.course_title || "ISO Certification",
-                status: lc.status || "active",
-                score: lc.score ?? 13,
-                total_marks: lc.total || lc.total_questions || 13,
-                percentage: lc.percentage ?? 100,
-                issued_at: lc.issued_at || lc.completed_at || new Date().toISOString(),
-                created_at: lc.issued_at || lc.completed_at || new Date().toISOString(),
-                completion_date: lc.completion_date || lc.issued_at || new Date().toISOString(),
-                source: lc.source || "online",
-                candidate_email: lc.candidate_email || "learner@broadbeach.org",
-              });
-            }
-          });
-
-          list.forEach((rc) => {
-            const num = rc.certificate_number || rc.id;
-            if (num) {
-              const key = String(num).trim().toUpperCase();
-              const existing = map.get(key);
-              map.set(key, {
-                ...existing,
-                ...rc,
-                student_name:
-                  rc.student_name && !["learner", "student", "test student", "candidate"].includes(String(rc.student_name).toLowerCase())
-                    ? rc.student_name
-                    : existing?.student_name || "Verified Learner",
-              });
-            }
-          });
-
-          list = Array.from(map.values());
-        }
-      } catch (e) {
-        console.error("Local cert parsing error in admin:", e);
+      if (res?.data && Array.isArray(res.data)) {
+        list = res.data;
+      } else if (res?.data?.data && Array.isArray(res.data.data)) {
+        list = res.data.data;
+      } else if (Array.isArray(res)) {
+        list = res;
       }
 
       setCertificates(list);
-    } catch (err) {
-      toast.error(err.message || "Failed to load online certificates.");
+    } catch (apiErr) {
+      console.error("Online certificates fetch error:", apiErr);
+      setFetchError(apiErr.message || "Failed to load authoritative certificate records. Please verify backend connectivity.");
+      setCertificates([]);
+      toast.error(apiErr.message || "Certificate registry connection failed.", { id: "online-cert-fetch-error" });
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchCertificates();
@@ -393,8 +350,26 @@ const OnlineCertMaster = () => {
         </div>
       </div>
 
+      {/* Authoritative Connection Error Banner */}
+      {fetchError && (
+        <div className="p-4 bg-red-50/90 border border-red-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-red-800 text-xs">
+          <div className="flex items-center gap-2.5">
+            <FaTimesCircle className="text-red-500 text-base shrink-0" />
+            <span className="font-semibold">{fetchError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchCertificates}
+            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
+
       {/* Certificate Table Container with Horizontal Scroll Isolation */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden w-full max-w-full min-w-0">
+
         {/* Desktop / Laptop / Tablet Table (> 768px) */}
         <div className="hidden md:block w-full max-w-full min-w-0 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-xs border-collapse">

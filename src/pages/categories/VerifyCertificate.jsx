@@ -244,31 +244,6 @@ const VerifyCertificate = () => {
       }
     } catch (e) {}
 
-    // 4. Recognized Broadbeach Academy pattern: BBA-{courseId}-{timestamp/hash}
-    const bbaMatch = cleanNumber.match(/^BBA-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)$/i);
-    if (bbaMatch) {
-      const rawCourseId = bbaMatch[1];
-      const canonicalId = normalizeCourseId(rawCourseId) || rawCourseId;
-      const courseName = getAuthoritativeCourseName(canonicalId) || `ISO ${rawCourseId} Certification`;
-
-      return {
-        certificate_number: cleanNumber,
-        student_name: resolveStudentName(null, cleanNumber),
-        course_name: courseName,
-        score: 13,
-        total_questions: 13,
-        percentage: 100,
-        issued_at: new Date().toISOString(),
-        completion_date: new Date().toISOString(),
-        certificate_number_status: 1,
-        verification_status: "Verified",
-        source: "online",
-        issuing_organization: "Broadbeach Academy",
-        authorized_signatory: "Dr. K. R. Sharma, Academic Director",
-        pdf_path: null,
-      };
-    }
-
     return null;
   };
 
@@ -331,21 +306,6 @@ const VerifyCertificate = () => {
         return;
       }
 
-      // Fallback to local match if backend returned non-success
-      if (localMatch) {
-        setResult({
-          status: "valid",
-          success: true,
-          message:
-            "Valid Certificate — confirmed by authentic Broadbeach Academy records.",
-          data: {
-            ...localMatch,
-            student_name: resolveStudentName(localMatch, certificate),
-          },
-        });
-        return;
-      }
-
       setResult({
         status: "invalid",
         success: false,
@@ -374,18 +334,6 @@ const VerifyCertificate = () => {
             respData?.message ||
             "Revoked Certificate — this credential has been revoked and is no longer valid.",
           data: respData?.data || null,
-        });
-      } else if (localMatch) {
-        // Fallback to verified local certificate or valid BBA credential format
-        setResult({
-          status: "valid",
-          success: true,
-          message:
-            "Valid Certificate — confirmed by authentic Broadbeach Academy records.",
-          data: {
-            ...localMatch,
-            student_name: resolveStudentName(localMatch, certificate),
-          },
         });
       } else if (statusCode === 404 || statusCode === 400 || statusCode === 409 || statusCode === 422) {
         setResult({

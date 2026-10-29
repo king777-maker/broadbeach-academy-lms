@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAdmin } from "../../context/AdminContext";
 import { getAdminOverview } from "../../api/adminApi";
+import toast from "react-hot-toast";
 import {
   FaAward,
   FaFileAlt,
@@ -24,6 +25,8 @@ const AdminDashboard = () => {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [data, setData] = useState({
     online_certificates_count: 0,
     manual_certificates_count: 0,
@@ -40,8 +43,8 @@ const AdminDashboard = () => {
     },
     issuance_trends: {
       months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-      online: [60, 80, 105, 130, 150, 178],
-      manual: [28, 40, 48, 55, 60, 64],
+      online: [0, 0, 0, 0, 0, 0],
+      manual: [0, 0, 0, 0, 0, 0],
     },
     recent_activity: [],
     urgent_tickets: [],
@@ -60,12 +63,20 @@ const AdminDashboard = () => {
       } else {
         setLoading(true);
       }
+      setError(null);
       const res = await getAdminOverview();
       if (res?.data) {
         setData(res.data);
+        setLastUpdated(new Date().toLocaleTimeString());
       }
     } catch (err) {
       console.error("Dashboard overview error:", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load authoritative dashboard metrics from server.";
+      setError(msg);
+      toast.error(msg, { id: "dashboard-overview-error" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -157,18 +168,18 @@ const AdminDashboard = () => {
 
   // Bar chart status definitions
   const statusConfig = [
-    { label: "New", key: "New", color: "#1E60D5", fallback: 28 },
-    { label: "Open", key: "Open", color: "#F5A623", fallback: 18 },
-    { label: "In Progress", key: "In Progress", color: "#60A5FA", fallback: 12 },
-    { label: "Waiting for User", key: "Waiting for User", color: "#A5B4FC", fallback: 6 },
-    { label: "Resolved", key: "Resolved", color: "#10B981", fallback: 20 },
-    { label: "Closed", key: "Closed", color: "#94A3B8", fallback: 5 },
+    { label: "New", key: "New", color: "#1E60D5", fallback: 0 },
+    { label: "Open", key: "Open", color: "#F5A623", fallback: 0 },
+    { label: "In Progress", key: "In Progress", color: "#60A5FA", fallback: 0 },
+    { label: "Waiting for User", key: "Waiting for User", color: "#A5B4FC", fallback: 0 },
+    { label: "Resolved", key: "Resolved", color: "#10B981", fallback: 0 },
+    { label: "Closed", key: "Closed", color: "#94A3B8", fallback: 0 },
   ];
 
   // Trend data points
   const trendMonths = data.issuance_trends?.months || ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-  const trendOnline = data.issuance_trends?.online || [60, 80, 105, 130, 150, 178];
-  const trendManual = data.issuance_trends?.manual || [28, 40, 48, 55, 60, 64];
+  const trendOnline = data.issuance_trends?.online || [0, 0, 0, 0, 0, 0];
+  const trendManual = data.issuance_trends?.manual || [0, 0, 0, 0, 0, 0];
 
   // SVG Chart Dimensions
   const chartW = 500;
@@ -179,7 +190,7 @@ const AdminDashboard = () => {
   const padB = 40;
   const plotW = chartW - padL - padR;
   const plotH = chartH - padT - padB;
-  const maxTrendVal = 200;
+  const maxTrendVal = Math.max(10, ...trendOnline, ...trendManual);
 
   // Build SVG path points for trend lines
   const getCoordinates = (values) => {
@@ -226,6 +237,29 @@ const AdminDashboard = () => {
           <p className="text-sm text-slate-500 mt-2 max-w-xl leading-relaxed">
             Manage certificates, learner support, and administrative access across Broadbeach Academy.
           </p>
+          <div className="flex items-center gap-3 mt-3 text-xs text-slate-400">
+            {lastUpdated ? (
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Authoritative live sync: {lastUpdated}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                {loading ? "Connecting to backend..." : "Awaiting sync"}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => fetchOverviewData(true)}
+              disabled={refreshing || loading}
+              className="inline-flex items-center gap-1 text-slate-500 hover:text-[#0B315B] transition cursor-pointer font-semibold"
+              title="Refresh dashboard metrics"
+            >
+              <FaSyncAlt className={`text-[10px] ${refreshing ? "animate-spin text-[#0B315B]" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Right: Quick Action Buttons (Matching Mockup) */}
@@ -259,6 +293,27 @@ const AdminDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Authoritative Dashboard Error State */}
+      {error && (
+        <div className="p-4 bg-red-50/90 border border-red-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-red-800 text-xs">
+          <div className="flex items-center gap-2.5">
+            <FaExclamationTriangle className="text-red-500 text-base shrink-0" />
+            <div>
+              <p className="font-semibold">{error}</p>
+              <p className="text-red-600/80 text-[11px] mt-0.5">Authoritative metrics could not be synchronized with the backend. Displayed counters show 0 until live connection is restored.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchOverviewData(true)}
+            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs shrink-0 cursor-pointer flex items-center gap-1.5"
+          >
+            <FaSyncAlt className={`text-xs ${refreshing ? "animate-spin" : ""}`} />
+            Retry Connection
+          </button>
+        </div>
+      )}
 
       {/* =========================================================================
           SECTION 2: FIVE PRIMARY KPI CARDS (MATCHING VISUAL MOCKUP)

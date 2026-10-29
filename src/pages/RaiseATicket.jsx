@@ -71,20 +71,12 @@ const RaiseATicket = () => {
       }
     } catch (err) {
       console.error("Ticket submission error:", err);
-      // Resilient fallback so learner is never blocked
-      const fallbackId = "TICK-" + Date.now().toString(36).toUpperCase();
-      setSubmittedTicket({
-        id: fallbackId,
-        subject: formData.subject,
-        requester_name: formData.name,
-        requester_email: formData.email,
-        category: formData.category,
-      });
-      toast.success(`Ticket #${fallbackId} registered.`);
+      toast.error(err.message || "Failed to submit support ticket. Please check your network connection and try again.");
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const resetForm = () => {
     setSubmittedTicket(null);

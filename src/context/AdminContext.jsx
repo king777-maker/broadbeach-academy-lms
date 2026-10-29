@@ -63,12 +63,9 @@ export const AdminProvider = ({ children }) => {
       } else {
         saveAdminLocally(null);
       }
-    } catch (err) {
-      // If server explicitly rejects (401/403), clear local session.
-      // Otherwise preserve local session for offline/cross-origin resilience.
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
-        saveAdminLocally(null);
-      }
+    } catch {
+      // Authoritative enforcement: clear local state if server check fails
+      saveAdminLocally(null);
     } finally {
       setLoading(false);
     }
@@ -93,30 +90,23 @@ export const AdminProvider = ({ children }) => {
       }
       if (res?.status && res?.data) {
         saveAdminLocally(res.data);
-        toast.success(`Welcome back, ${res.data.name}!`, { id: "admin-login-toast" });
+        const displayName = res.data.name || res.data.username || "Administrator";
+        toast.success(`Welcome back, ${displayName}!`, { id: "admin-login-toast" });
         return { success: true, data: res.data };
       }
       throw new Error(res?.message || "Invalid credentials.");
     } catch (err) {
-      // Fallback for secure console credentials if remote API is unavailable/CORS restricted
-      if (
-        credentials?.email?.toLowerCase().trim() === "admin@broadbeachlearning.com" &&
-        credentials?.password === "broad_beach_admin_2026"
-      ) {
-        const fallbackAdmin = {
-          id: 1,
-          name: "Administrator",
-          email: "admin@broadbeachlearning.com",
-          role: "super_admin",
-        };
-        saveAdminLocally(fallbackAdmin);
-        toast.success(`Welcome back, Administrator!`, { id: "admin-login-toast" });
-        return { success: true, data: fallbackAdmin };
-      }
-      toast.error(err.message || "Admin login failed.", { id: "admin-login-error" });
-      throw err;
+      saveAdminLocally(null);
+      const msg = err.status === 401
+        ? "Invalid email or password."
+        : (err.message || "Admin authentication failed. Please check backend connection.");
+      toast.error(msg, { id: "admin-login-error" });
+      const formatted = new Error(msg);
+      formatted.status = err.status;
+      throw formatted;
     }
   };
+
 
   // Step 2 Login: 6-digit TOTP code
   const verifyLogin2FA = async ({ challenge_id, code }) => {

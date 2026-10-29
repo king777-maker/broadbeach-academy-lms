@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://cadac.in/broadbeachlearning.com/broadbeach-backend/api/:path*"
+    },
+    {
+      "source": "/broadbeachlearning.com/broadbeach-backend/api/:path*",
+      "destination": "https://cadac.in/broadbeachlearning.com/broadbeach-backend/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

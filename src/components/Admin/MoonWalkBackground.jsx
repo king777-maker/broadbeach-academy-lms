@@ -3,15 +3,11 @@ import React, { useEffect, useRef, useState } from "react";
 /**
  * MoonWalkBackground — Cinematic 4K Video Background with 2K Poster Fallback
  * 
- * Assets:
- * - Video: /assets/admin/moon-walk.mp4 (4K primary animated background)
- * - Poster: /assets/admin/moon-walk.jpg (2K fallback still)
- * 
  * Features:
  * - Autoplays muted, loops continuously, playsInline
  * - Immediate fallback to static poster on error, low-power, or reduced-motion
  * - Auto-pauses on document visibility loss to save battery & CPU/GPU
- * - Restrained dark navy ambient vignette preserving the luminous portal
+ * - Clean lifecycle tracking to prevent interrupted autoplay unhandled exceptions
  * - Non-blocking pointer events (pointer-events-none)
  */
 export default function MoonWalkBackground() {
@@ -20,6 +16,8 @@ export default function MoonWalkBackground() {
   const [useFallbackPoster, setUseFallbackPoster] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     // 1. Reduced motion check
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (mediaQuery.matches) {
@@ -27,41 +25,58 @@ export default function MoonWalkBackground() {
       return;
     }
 
+    const safePlay = () => {
+      if (!isMounted || !videoRef.current) return;
+      try {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined && typeof playPromise.catch === "function") {
+          playPromise.catch((err) => {
+            if (!isMounted) return;
+            // Ignore benign AbortError triggered by unmount or tab switch
+            if (err.name !== "AbortError") {
+              setUseFallbackPoster(true);
+            }
+          });
+        }
+      } catch {
+        if (isMounted) setUseFallbackPoster(true);
+      }
+    };
+
     const handleMotionChange = (e) => {
+      if (!isMounted) return;
       setUseFallbackPoster(e.matches);
       if (e.matches && videoRef.current) {
-        videoRef.current.pause();
-      } else if (!e.matches && videoRef.current) {
-        videoRef.current.play().catch(() => {});
+        try { videoRef.current.pause(); } catch {}
+      } else if (!e.matches) {
+        safePlay();
       }
     };
     mediaQuery.addEventListener("change", handleMotionChange);
 
     // 2. Document visibility listener
     const handleVisibility = () => {
-      if (!videoRef.current) return;
+      if (!isMounted || !videoRef.current) return;
       if (document.hidden) {
-        videoRef.current.pause();
+        try { videoRef.current.pause(); } catch {}
       } else if (!mediaQuery.matches) {
-        videoRef.current.play().catch(() => {});
+        safePlay();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // 3. Autoplay attempt with polite error handling
-    if (videoRef.current && !mediaQuery.matches) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          // Autoplay blocked by browser policy; stay on poster
-          console.info("[MoonWalkBackground] Autoplay constrained, retaining poster fallback:", err.message);
-        });
-      }
-    }
+    // 3. Autoplay attempt
+    safePlay();
 
     return () => {
+      isMounted = false;
       mediaQuery.removeEventListener("change", handleMotionChange);
       document.removeEventListener("visibilitychange", handleVisibility);
+      if (videoRef.current) {
+        try {
+          videoRef.current.pause();
+        } catch {}
+      }
     };
   }, []);
 
@@ -98,10 +113,7 @@ export default function MoonWalkBackground() {
       )}
 
       {/* Restrained Broadbeach Navy Ambient Gradient Overlay */}
-      {/* 1. Deep navy vignette around edges */}
       <div className="absolute inset-0 bg-radial-[circle_at_50%_50%]_from-transparent_via-[#061224]/35_to-[#040B17]/80 pointer-events-none" />
-
-      {/* 2. Top-to-bottom subtle contrast grading */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#050E1C]/60 via-transparent to-[#040A14]/75 pointer-events-none" />
     </div>
   );

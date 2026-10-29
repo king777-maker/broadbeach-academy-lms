@@ -1,13 +1,13 @@
 import axios from "axios";
+import { getApiBaseUrl } from "./api";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? "/api"
-    : "https://cadac.in/broadbeachlearning.com/broadbeach-backend/api");
+const getAdminBaseUrl = () => {
+  const base = getApiBaseUrl().replace(/\/+$/, "");
+  return `${base}/admin`;
+};
 
 const adminAxios = axios.create({
-  baseURL: `${API_BASE_URL}/admin`,
+  baseURL: getAdminBaseUrl(),
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -18,12 +18,28 @@ const adminAxios = axios.create({
 adminAxios.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("bb_admin_token");
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      config.headers["X-Admin-Token"] = token;
     }
   }
   return config;
 });
+
+adminAxios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("bb_admin_token");
+        localStorage.removeItem("bb_admin_user");
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Helper for error formatting
 const handleApiError = (err) => {
@@ -45,6 +61,9 @@ const handleApiError = (err) => {
 export const adminLogin = async (credentials) => {
   try {
     const res = await adminAxios.post("/login", credentials);
+    if (res.data?.data?.token && typeof window !== "undefined") {
+      localStorage.setItem("bb_admin_token", res.data.data.token);
+    }
     return res.data;
   } catch (err) {
     handleApiError(err);
@@ -54,6 +73,9 @@ export const adminLogin = async (credentials) => {
 export const adminLogin2FA = async ({ challenge_id, code }) => {
   try {
     const res = await adminAxios.post("/login-2fa", { challenge_id, code });
+    if (res.data?.data?.token && typeof window !== "undefined") {
+      localStorage.setItem("bb_admin_token", res.data.data.token);
+    }
     return res.data;
   } catch (err) {
     handleApiError(err);
@@ -88,8 +110,14 @@ export const adminLogout = async () => {
     return res.data;
   } catch (err) {
     handleApiError(err);
+  } finally {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("bb_admin_token");
+      localStorage.removeItem("bb_admin_user");
+    }
   }
 };
+
 
 export const getAdminOverview = async () => {
   try {
