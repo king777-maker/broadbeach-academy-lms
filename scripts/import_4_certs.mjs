@@ -182,3 +182,4 @@ if (!masterSql.includes('25BB234410')) {
   fs.writeFileSync(masterSqlPath, masterSql, 'utf8');
   console.log('Master SQL file updated successfully!');
 }
+
