@@ -55,3 +55,4 @@ logo.save(r'C:\Users\ADMIN\Desktop\bb_exp-2.0\public\logo.webp', 'WEBP')
 logo.save(r'C:\Users\ADMIN\Desktop\LMS-test\public\logo.webp', 'WEBP')
 print('Updated WEBP targets')
 print('All logo files successfully updated!')
+
