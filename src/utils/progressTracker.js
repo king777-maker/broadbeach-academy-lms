@@ -1,5 +1,6 @@
 import { generateCurriculumForCourse } from "../data/coursesResolver.js";
 import { FREE_COURSE_DB_MAP } from "../constants/courseAvailability.js";
+import { generateOfficialCertificateNumber } from "./certificateGenerator.js";
 
 const STORAGE_PREFIX = "bb_course_progress_";
 const CERT_STORAGE_KEY = "bb_certificates";
@@ -505,55 +506,89 @@ export const markCourseCompleted = (userId, courseId, certData = {}) => {
       }
     } catch (enrErr) {}
 
-    if (certData && certData.certificate_number) {
-      const certs = JSON.parse(localStorage.getItem(CERT_STORAGE_KEY) || "[]");
-      const existingIdx = certs.findIndex(
-        (c) =>
-          String(c.certification_id) === String(cId) ||
-          (c.certificate_number && c.certificate_number === certData.certificate_number)
+    // Always resolve or generate an official certificate number upon course completion
+    const officialCertNumber =
+      (certData && certData.certificate_number && !String(certData.certificate_number).startsWith("BBA-") ? certData.certificate_number : null) ||
+      localStorage.getItem(`certificate_number_${cId}`) ||
+      sessionStorage.getItem(`certificate_number_${cId}`) ||
+      generateOfficialCertificateNumber(cId, uId);
+
+    localStorage.setItem(`certificate_number_${cId}`, officialCertNumber);
+
+    const certs = JSON.parse(localStorage.getItem(CERT_STORAGE_KEY) || "[]");
+    const existingIdx = certs.findIndex(
+      (c) =>
+        String(c.certification_id) === String(cId) ||
+        (c.certificate_number && c.certificate_number === officialCertNumber)
+    );
+
+    // Resolve student name if missing or placeholder
+    let resolvedStudentName = certData.student_name || certData.studentName;
+    if (
+      !resolvedStudentName ||
+      ["learner", "student", "test student", "candidate", "—"].includes(
+        String(resolvedStudentName).trim().toLowerCase()
+      )
+    ) {
+      try {
+        const raw = localStorage.getItem("bb_user") || localStorage.getItem("user");
+        if (raw) {
+          const u = JSON.parse(raw);
+          resolvedStudentName =
+            u.name ||
+            u.full_name ||
+            [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+            u.username;
+        }
+      } catch (e) {}
+    }
+
+    // Resolve candidate email
+    let candidateEmail = certData?.candidate_email || certData?.email;
+    if (!candidateEmail) {
+      try {
+        const raw = localStorage.getItem("bb_user") || localStorage.getItem("user");
+        if (raw) {
+          const u = JSON.parse(raw);
+          candidateEmail = u.email;
+        }
+      } catch (e) {}
+    }
+
+    const finalStudentName = String(resolvedStudentName || "VERIFIED LEARNER").trim().toUpperCase();
+
+    const certEntry = {
+      user_id: uId,
+      certification_id: cId,
+      course_id: cId,
+      course_name: certData.course_name || certData.course_title || `ISO Course ${cId}`,
+      student_name: finalStudentName,
+      candidate_email: candidateEmail || "learner@broadbeachonline.com",
+      status: "valid",
+      verification_status: "Valid",
+      source: "online",
+      score: certData.score ?? 10,
+      total_questions: certData.total ?? certData.total_questions ?? 10,
+      percentage: certData.percentage ?? 100,
+      ...certData,
+      certificate_number: officialCertNumber,
+      completed_at: certData.completed_at || new Date().toISOString(),
+      issued_at: certData.issued_at || new Date().toISOString(),
+    };
+
+    if (existingIdx >= 0) {
+      certs[existingIdx] = { ...certs[existingIdx], ...certEntry };
+    } else {
+      certs.unshift(certEntry);
+    }
+    localStorage.setItem(CERT_STORAGE_KEY, JSON.stringify(certs));
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("bb_certificate_created", {
+          detail: certEntry,
+        })
       );
-
-      // Resolve student name if missing or placeholder
-      let resolvedStudentName = certData.student_name || certData.studentName;
-      if (
-        !resolvedStudentName ||
-        ["learner", "student", "test student", "candidate", "—"].includes(
-          String(resolvedStudentName).trim().toLowerCase()
-        )
-      ) {
-        try {
-          const raw = localStorage.getItem("bb_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            resolvedStudentName =
-              u.name ||
-              u.full_name ||
-              [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
-              u.username;
-          }
-        } catch (e) {}
-      }
-
-      const certEntry = {
-        user_id: uId,
-        certification_id: cId,
-        course_id: cId,
-        course_name: certData.course_name || certData.course_title || `ISO Course ${cId}`,
-        student_name: resolvedStudentName || "Verified Learner",
-        status: "active",
-        verification_status: "Verified",
-        source: "online",
-        ...certData,
-        completed_at: new Date().toISOString(),
-        issued_at: new Date().toISOString(),
-      };
-
-      if (existingIdx >= 0) {
-        certs[existingIdx] = { ...certs[existingIdx], ...certEntry };
-      } else {
-        certs.unshift(certEntry);
-      }
-      localStorage.setItem(CERT_STORAGE_KEY, JSON.stringify(certs));
     }
 
     localStorage.setItem("bb_last_progress_update", JSON.stringify({

@@ -172,8 +172,19 @@ const OnlineCertMaster = () => {
     fetchCertificates(false);
     const interval = setInterval(() => {
       fetchCertificates(true);
-    }, 15000);
-    return () => clearInterval(interval);
+    }, 10000);
+
+    const onLiveCertSync = () => fetchCertificates(true);
+    window.addEventListener("bb_progress_updated", onLiveCertSync);
+    window.addEventListener("bb_certificate_created", onLiveCertSync);
+    window.addEventListener("storage", onLiveCertSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("bb_progress_updated", onLiveCertSync);
+      window.removeEventListener("bb_certificate_created", onLiveCertSync);
+      window.removeEventListener("storage", onLiveCertSync);
+    };
   }, [statusFilter, courseFilter]);
 
   const handleSearchSubmit = (e) => {

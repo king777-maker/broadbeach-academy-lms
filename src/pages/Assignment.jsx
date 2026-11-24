@@ -906,8 +906,13 @@ const Assignment = () => {
                                     assessmentId,
                                     result?.course_title || assessment?.course_title || assessment?.title || "ISO Course"
                                 );
+                                const resolvedCertNumber =
+                                    (result?.certificate_number && !String(result.certificate_number).startsWith("BBA-") ? result.certificate_number : null) ||
+                                    localStorage.getItem(`certificate_number_${assessmentId}`) ||
+                                    generateOfficialCertificateNumber(assessmentId, uId);
+
                                 markCourseCompleted(uId, assessmentId, {
-                                    certificate_number: result?.certificate_number,
+                                    certificate_number: resolvedCertNumber,
                                     student_name: studentName || "Verified Learner",
                                     course_name: authoritativeCourse,
                                     score: result?.score,
@@ -924,7 +929,7 @@ const Assignment = () => {
                                     score: result?.score,
                                     total: result?.total,
                                     percentage: result?.percentage,
-                                    certificate_number: result?.certificate_number,
+                                    certificate_number: resolvedCertNumber,
                                 }).catch((ce) => console.warn("Background auto certificate creation notice:", ce));
                             } catch (err) {
                                 console.error("Auto complete error:", err);
@@ -942,7 +947,7 @@ const Assignment = () => {
                                     passingPercentage: result?.passing_percentage || 70,
                                     passed: isPassed,
                                     certificate: result?.certificate,
-                                    certificate_number: result?.certificate_number,
+                                    certificate_number: (result?.certificate_number && !String(result.certificate_number).startsWith("BBA-") ? result.certificate_number : null) || localStorage.getItem(`certificate_number_${assessmentId}`),
                                     courseName: getAuthoritativeCourseName(assessmentId, result?.course_title || assessment?.course_title || assessment?.title || "ISO Course"),
                                     studentName: studentName || "Learner",
                                     certificationId: assessmentId,

@@ -93,9 +93,19 @@ const AdminDashboard = () => {
     };
     window.addEventListener("focus", handleFocus);
 
+    const onLiveLmsUpdate = () => {
+      if (mounted) fetchOverviewData(true);
+    };
+    window.addEventListener("bb_progress_updated", onLiveLmsUpdate);
+    window.addEventListener("bb_certificate_created", onLiveLmsUpdate);
+    window.addEventListener("storage", onLiveLmsUpdate);
+
     return () => {
       mounted = false;
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("bb_progress_updated", onLiveLmsUpdate);
+      window.removeEventListener("bb_certificate_created", onLiveLmsUpdate);
+      window.removeEventListener("storage", onLiveLmsUpdate);
     };
   }, []);
 
