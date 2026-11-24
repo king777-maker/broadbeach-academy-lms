@@ -44,25 +44,61 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 // 2. Database Connection
 $db = null;
-if (file_exists(__DIR__ . '/../configuration/config.php')) {
-    require_once __DIR__ . '/../configuration/config.php';
-    if (class_exists('mysqli')) {
-        $db = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, defined('DB_PORT') ? DB_PORT : 3306);
-    }
-} elseif (file_exists(__DIR__ . '/configuration/config.php')) {
-    require_once __DIR__ . '/configuration/config.php';
-    if (class_exists('mysqli')) {
-        $db = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, defined('DB_PORT') ? DB_PORT : 3306);
+
+// Search for database configuration files (supports your cPanel config/database.php)
+$possibleConfigFiles = [
+    __DIR__ . '/../config/database.php',
+    __DIR__ . '/config/database.php',
+    __DIR__ . '/../config/functions.php',
+    __DIR__ . '/../configuration/config.php',
+    __DIR__ . '/configuration/config.php',
+    __DIR__ . '/../configuration/Database.php',
+    __DIR__ . '/../source/config/Database.php',
+];
+
+foreach ($possibleConfigFiles as $cfg) {
+    if (file_exists($cfg)) {
+        require_once $cfg;
+        if (isset($conn) && $conn instanceof mysqli) { $db = $conn; break; }
+        if (isset($con) && $con instanceof mysqli) { $db = $con; break; }
+        if (isset($connection) && $connection instanceof mysqli) { $db = $connection; break; }
+        if (isset($db) && $db instanceof mysqli) { break; }
+        if (class_exists('Database')) {
+            try {
+                $dbObj = new Database();
+                if (method_exists($dbObj, 'connect')) {
+                    $db = $dbObj->connect();
+                    if ($db instanceof mysqli && !$db->connect_error) break;
+                }
+            } catch (Throwable $t) {}
+        }
+        if (defined('DB_HOST') && defined('DB_USER') && defined('DB_NAME')) {
+            try {
+                $db = new mysqli(DB_HOST, DB_USER, defined('DB_PASSWORD') ? DB_PASSWORD : '', DB_NAME, defined('DB_PORT') ? DB_PORT : 3306);
+                if ($db && !$db->connect_error) break;
+            } catch (Throwable $t) {}
+        }
+        $h = $host ?? $servername ?? $db_host ?? null;
+        $u = $user ?? $username ?? $db_user ?? null;
+        $p = $password ?? $db_password ?? '';
+        $n = $database ?? $dbname ?? $db_name ?? null;
+        if ($h && $u && $n) {
+            try {
+                $db = new mysqli($h, $u, $p, $n);
+                if ($db && !$db->connect_error) break;
+            } catch (Throwable $t) {}
+        }
     }
 }
 
+// Fallback to environment or default parameters if config not found
 if (!$db || $db->connect_error) {
     $dbHost = getenv('DB_HOST') ?: 'localhost';
     $dbUser = getenv('DB_USER') ?: 'root';
     $dbPass = getenv('DB_PASSWORD') ?: '';
     $dbName = getenv('DB_NAME') ?: 'broad_beach_online';
     $dbPort = (int)(getenv('DB_PORT') ?: 3306);
-    $db = new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
+    $db = @new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
 }
 
 if ($db->connect_error) {
