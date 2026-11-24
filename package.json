@@ -14,7 +14,6 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@heroicons/react": "^2.2.0",
-    "@rolldown/binding-win32-x64-msvc": "^1.2.15",
     "@tailwindcss/vite": "^4.3.3",
     "aos": "^2.3.4",
     "axios": "^1.19.0",
@@ -40,5 +39,8 @@
     "@vitejs/plugin-react": "^6.0.3",
     "puppeteer-core": "^24.43.1",
     "vite": "^8.1.1"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.2.15"
   }
 }
