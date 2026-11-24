@@ -6,6 +6,7 @@ import {
   revokeOnlineCertificate,
   reissueOnlineCertificate,
   deleteOnlineCertificate,
+  isDummyOnlineCert,
 } from "../../api/adminApi";
 import { downloadCertificatePDF } from "../../utils/certificateGenerator";
 import PinVerificationModal from "../../components/Admin/PinVerificationModal";
@@ -81,16 +82,21 @@ const OnlineCertMaster = () => {
         list = res;
       }
 
-      // Merge any recent local test completions from browser storage
+      // Merge any recent local test completions from browser storage (purging any legacy dummy data)
       try {
         const localRaw = localStorage.getItem("bb_certificates");
         if (localRaw) {
           const localList = JSON.parse(localRaw);
           if (Array.isArray(localList) && localList.length > 0) {
+            const cleanLocal = localList.filter((c) => c && !isDummyOnlineCert(c));
+            if (cleanLocal.length !== localList.length) {
+              localStorage.setItem("bb_certificates", JSON.stringify(cleanLocal));
+            }
+
             const existingNumbers = new Set(
               list.map((c) => String(c.certificate_number || "").toUpperCase().trim())
             );
-            const freshCompletions = localList
+            const freshCompletions = cleanLocal
               .filter(
                 (item) =>
                   item &&
@@ -103,8 +109,8 @@ const OnlineCertMaster = () => {
                 student_name: String(item.student_name || "Learner").toUpperCase(),
                 candidate_email: item.candidate_email || "learner@broadbeachonline.com",
                 course_name: item.course_name || "Online Certification",
-                score: item.score ?? 13,
-                total_questions: item.total ?? item.total_questions ?? 13,
+                score: item.score ?? 10,
+                total_questions: item.total ?? item.total_questions ?? 10,
                 percentage: item.percentage ?? 100,
                 issued_at: item.issued_at || item.completion_date || new Date().toISOString(),
                 completion_date: item.completion_date || item.issued_at || new Date().toISOString(),
@@ -132,21 +138,23 @@ const OnlineCertMaster = () => {
         if (localRaw) {
           const localList = JSON.parse(localRaw);
           if (Array.isArray(localList)) {
-            fallbackList = localList.map((item, idx) => ({
-              id: `fallback-${item.certificate_number || idx}`,
-              certificate_number: item.certificate_number,
-              student_name: String(item.student_name || "Learner").toUpperCase(),
-              candidate_email: item.candidate_email || "learner@broadbeachonline.com",
-              course_name: item.course_name || "Online Certification",
-              score: item.score ?? 13,
-              total_questions: item.total ?? item.total_questions ?? 13,
-              percentage: item.percentage ?? 100,
-              issued_at: item.issued_at || item.completion_date || new Date().toISOString(),
-              completion_date: item.completion_date || item.issued_at || new Date().toISOString(),
-              status: item.status || "valid",
-              verification_status: "Valid",
-              source: "local_registry",
-            }));
+            fallbackList = localList
+              .filter((item) => item && !isDummyOnlineCert(item))
+              .map((item, idx) => ({
+                id: `fallback-${item.certificate_number || idx}`,
+                certificate_number: item.certificate_number,
+                student_name: String(item.student_name || "Learner").toUpperCase(),
+                candidate_email: item.candidate_email || "learner@broadbeachonline.com",
+                course_name: item.course_name || "Online Certification",
+                score: item.score ?? 10,
+                total_questions: item.total ?? item.total_questions ?? 10,
+                percentage: item.percentage ?? 100,
+                issued_at: item.issued_at || item.completion_date || new Date().toISOString(),
+                completion_date: item.completion_date || item.issued_at || new Date().toISOString(),
+                status: item.status || "valid",
+                verification_status: "Valid",
+                source: "local_registry",
+              }));
           }
         }
       } catch (fallbackParseErr) {

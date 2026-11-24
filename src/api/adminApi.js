@@ -315,13 +315,33 @@ export function getEffectiveManualCertificates() {
 
 export const DEFAULT_STAGED_ONLINE_CERTS = ONLINE_CERTIFICATES_SEED;
 
+export const isDummyOnlineCert = (c) => {
+  if (!c) return true;
+  const name = String(c.student_name || "").toUpperCase().trim();
+  const certNum = String(c.certificate_number || "").toUpperCase().trim();
+  const email = String(c.candidate_email || "").toLowerCase().trim();
+  return (
+    name.includes("QA TEST") ||
+    name.includes("USER 101") ||
+    name === "QA TESTER" ||
+    name === "SALES BROADBEACH" ||
+    certNum === "BOA32299596" ||
+    certNum === "BOA332101189" ||
+    certNum === "BOA33213229" ||
+    certNum === "BOA10117" ||
+    email.includes("qa.test") ||
+    email.includes("user101@") ||
+    email.includes("qa.tester")
+  );
+};
+
 export function getEffectiveOnlineCertificates() {
   const map = new Map();
 
-  // 1. Seed base online certificates
+  // 1. Seed base online certificates (only real authoritative records)
   if (Array.isArray(ONLINE_CERTIFICATES_SEED)) {
     for (const c of ONLINE_CERTIFICATES_SEED) {
-      if (c && c.certificate_number) {
+      if (c && c.certificate_number && !isDummyOnlineCert(c)) {
         map.set(String(c.certificate_number).toUpperCase().trim(), { ...c });
       }
     }
@@ -334,7 +354,13 @@ export function getEffectiveOnlineCertificates() {
       if (rawLMS) {
         const lmsList = JSON.parse(rawLMS);
         if (Array.isArray(lmsList)) {
-          for (const item of lmsList) {
+          // Purge legacy dummy records from localStorage
+          const cleanLMS = lmsList.filter(item => item && !isDummyOnlineCert(item));
+          if (cleanLMS.length !== lmsList.length) {
+            localStorage.setItem("bb_certificates", JSON.stringify(cleanLMS));
+          }
+
+          for (const item of cleanLMS) {
             if (item && item.certificate_number) {
               const key = String(item.certificate_number).toUpperCase().trim();
               const existing = map.get(key) || {};
@@ -371,7 +397,7 @@ export function getEffectiveOnlineCertificates() {
             map.delete(key);
           } else if (map.has(key)) {
             map.set(key, { ...map.get(key), ...o });
-          } else {
+          } else if (!isDummyOnlineCert(o)) {
             map.set(key, o);
           }
         }
