@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAdmin } from "../../context/AdminContext";
 import { getAdminOverview } from "../../api/adminApi";
+import { adminRoutes } from "../../utils/adminRoutes";
 import toast from "react-hot-toast";
 import {
   FaAward,
@@ -127,7 +128,7 @@ const AdminDashboard = () => {
       caption: "Total issued via online courses",
       icon: FaAward,
       iconBg: "bg-blue-50 text-blue-600",
-      to: "/admin/online-certs",
+      to: adminRoutes.onlineCerts,
       border: "border-blue-100",
     },
     {
@@ -138,7 +139,7 @@ const AdminDashboard = () => {
       caption: "Offline & manual issuance",
       icon: FaFileAlt,
       iconBg: "bg-amber-50 text-amber-600",
-      to: "/admin/manual-certs",
+      to: adminRoutes.manualCerts,
       border: "border-amber-100",
     },
     {
@@ -149,7 +150,7 @@ const AdminDashboard = () => {
       caption: "Pending learner requests",
       icon: FaCommentDots,
       iconBg: "bg-emerald-50 text-emerald-600",
-      to: "/admin/tickets",
+      to: adminRoutes.tickets,
       border: "border-emerald-100",
     },
     {
@@ -160,7 +161,7 @@ const AdminDashboard = () => {
       caption: "Soft deleted items",
       icon: FaTrashAlt,
       iconBg: "bg-rose-50 text-rose-600",
-      to: "/admin/trash",
+      to: adminRoutes.trash,
       border: "border-rose-100",
     },
     {
@@ -171,7 +172,7 @@ const AdminDashboard = () => {
       caption: "Authorized staff & roles",
       icon: FaUsers,
       iconBg: "bg-purple-50 text-purple-600",
-      to: "/admin/access",
+      to: adminRoutes.access,
       border: "border-purple-100",
     },
   ];
@@ -277,7 +278,7 @@ const AdminDashboard = () => {
           {/* Issue Manual Cert Button */}
           <button
             type="button"
-            onClick={() => navigate("/admin/manual-certs?action=create")}
+            onClick={() => navigate(`${adminRoutes.manualCerts}?action=create`)}
             className="group px-6 py-3.5 bg-[#FFC72C] hover:bg-[#F2BA20] active:scale-98 text-[#0A192F] font-bold rounded-2xl shadow-md shadow-amber-400/20 transition-all flex items-center justify-between gap-4 cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -292,7 +293,7 @@ const AdminDashboard = () => {
           {/* View Open Tickets Button */}
           <button
             type="button"
-            onClick={() => navigate("/admin/tickets?status=open")}
+            onClick={() => navigate(`${adminRoutes.tickets}?status=open`)}
             className="group px-6 py-3.5 bg-[#0B2545] hover:bg-[#081C35] active:scale-98 text-white font-semibold rounded-2xl shadow-sm transition-all flex items-center justify-between gap-4 border border-blue-900/40 cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -513,7 +514,7 @@ const AdminDashboard = () => {
                     key={idx}
                     onMouseEnter={() => setHoveredBar(item)}
                     onMouseLeave={() => setHoveredBar(null)}
-                    onClick={() => navigate(`/admin/tickets?status=${encodeURIComponent(item.key)}`)}
+                    onClick={() => navigate(`${adminRoutes.tickets}?status=${encodeURIComponent(item.key)}`)}
                     className="relative flex-1 flex flex-col items-center justify-end h-full group cursor-pointer z-10"
                   >
                     {/* Value Badge above Bar */}
@@ -771,7 +772,7 @@ const AdminDashboard = () => {
               <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
             </button>
             <Link
-              to="/admin/access"
+              to={adminRoutes.access}
               className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition ml-1"
             >
               View All

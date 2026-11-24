@@ -582,7 +582,7 @@ const AdminLayout = ({ children }) => {
                         <div
                           key={t.id}
                           onClick={() => {
-                            navigate(`/admin/tickets?search=${encodeURIComponent(t.id)}`);
+                            navigate(`${adminRoutes.tickets}?search=${encodeURIComponent(t.id)}`);
                             setNotifOpen(false);
                           }}
                           className="p-3 hover:bg-slate-50 transition cursor-pointer flex items-start gap-2.5"
@@ -600,7 +600,7 @@ const AdminLayout = ({ children }) => {
                   </div>
                   <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
                     <Link
-                      to="/admin/tickets"
+                      to={adminRoutes.tickets}
                       onClick={() => setNotifOpen(false)}
                       className="text-xs font-bold text-[#0B1E36] hover:underline"
                     >
@@ -658,7 +658,7 @@ const AdminLayout = ({ children }) => {
 
                   <div className="py-1">
                     <Link
-                      to="/admin/access"
+                      to={adminRoutes.access}
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-slate-50 hover:text-[#0B1E36] rounded-xl transition"
                     >

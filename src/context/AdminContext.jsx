@@ -59,7 +59,6 @@ export const AdminProvider = ({ children }) => {
     const isAdminPath =
       typeof window !== "undefined" &&
       (window.location.pathname.startsWith(ADMIN_BASE_PATH) ||
-        window.location.pathname.startsWith("/admin") ||
         isSecretAdminLoginPath(window.location.pathname));
 
     if (!hasLocalAdmin && !isAdminPath) {

@@ -1,11 +1,11 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { useAdmin } from "../../context/AdminContext";
 import { adminRoutes } from "../../utils/adminRoutes";
-import AdminLogin from "../../pages/admin/AdminLogin";
 import { FaLock } from "react-icons/fa";
 
 const AdminProtectedRoute = ({ children, allowedRoles }) => {
+  const location = useLocation();
   const { currentAdmin, isAuthenticated, isSuperAdmin, loading } = useAdmin();
 
   if (loading) {
@@ -19,9 +19,9 @@ const AdminProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  // When unauthenticated, render the dedicated Admin Login portal so the administrator can sign in
+  // When unauthenticated, redirect to the secure secret login portal
   if (!isAuthenticated || !currentAdmin) {
-    return <AdminLogin />;
+    return <Navigate to={adminRoutes.login} state={{ from: location }} replace />;
   }
 
   // Super Admin has authoritative, unconditional access to all administration modules

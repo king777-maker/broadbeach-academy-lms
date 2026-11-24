@@ -129,7 +129,6 @@ function App() {
   const isLearningPlayer = location.pathname.startsWith("/learning");
   const isAdminRoute =
     location.pathname.startsWith(ADMIN_BASE_PATH) ||
-    location.pathname.startsWith("/admin") ||
     isSecretAdminLoginPath(location.pathname);
 
   // Centralized Maintenance Mode Interception:
@@ -582,13 +581,16 @@ function App() {
             />
 
             {/* =================================================
-                BROADBEACH ACADEMY ADMIN PANEL (5 MODULES)
+                BROADBEACH ACADEMY ADMIN PANEL (SECURE OBSCURITY LAYER)
+                Public /admin routes are strictly disabled and return 404 (NotFound)
             ================================================= */}
-            {/* Configurable cryptographically random admin login route */}
-            <Route path={adminRoutes.login} element={<AdminLogin />} />
+            {/* Strict Trap: Block all predictable /admin attempts */}
+            <Route path="/admin" element={<NotFound />} />
+            <Route path="/admin/*" element={<NotFound />} />
 
-            {/* Support standard /admin/login directly */}
-            <Route path="/admin/login" element={<AdminLogin />} />
+            {/* Configurable cryptographically random admin login routes */}
+            <Route path={adminRoutes.login} element={<AdminLogin />} />
+            <Route path={`${adminRoutes.base}/login`} element={<AdminLogin />} />
 
             <Route
               path={adminRoutes.base}
@@ -660,82 +662,6 @@ function App() {
                 </AdminProtectedRoute>
               }
             />
-
-            {/* Backwards compatibility aliases if ADMIN_BASE_PATH is customized */}
-            {ADMIN_BASE_PATH !== "/admin" && (
-              <>
-                <Route
-                  path="/admin"
-                  element={
-                    <AdminProtectedRoute>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/dashboard"
-                  element={
-                    <AdminProtectedRoute>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/online-certs"
-                  element={
-                    <AdminProtectedRoute allowedRoles={["super_admin", "admin", "cert_manager", "support_agent", "read_only"]}>
-                      <AdminLayout>
-                        <OnlineCertMaster />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/manual-certs"
-                  element={
-                    <AdminProtectedRoute allowedRoles={["super_admin", "admin", "cert_manager", "read_only"]}>
-                      <AdminLayout>
-                        <ManualCertMaster />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/tickets"
-                  element={
-                    <AdminProtectedRoute allowedRoles={["super_admin", "admin", "cert_manager", "support_agent", "read_only"]}>
-                      <AdminLayout>
-                        <TicketMaster />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/trash"
-                  element={
-                    <AdminProtectedRoute allowedRoles={["super_admin", "admin", "cert_manager"]}>
-                      <AdminLayout>
-                        <TrashBin />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/access"
-                  element={
-                    <AdminProtectedRoute allowedRoles={["super_admin"]}>
-                      <AdminLayout>
-                        <AdminAccess />
-                      </AdminLayout>
-                    </AdminProtectedRoute>
-                  }
-                />
-              </>
-            )}
 
             {/* =================================================
                 404 CATCH-ALL ROUTE

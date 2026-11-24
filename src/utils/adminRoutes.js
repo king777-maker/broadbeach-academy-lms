@@ -37,11 +37,11 @@ export function isValidAdminLoginPath(path) {
   return /^\/[a-zA-Z0-9_\-\/]{16,}$/.test(trimmed);
 }
 
-// 1. Resolve Admin Base Path (Default: "/admin")
+// 1. Resolve Admin Base Path (Default: "/secure-portal-2026")
 export const ADMIN_BASE_PATH = (
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_ADMIN_BASE_PATH) ||
   (typeof process !== "undefined" && (process.env?.ADMIN_BASE_PATH || process.env?.VITE_ADMIN_BASE_PATH)) ||
-  "/admin"
+  "/secure-portal-2026"
 ).replace(/\/+$/, "");
 
 // 2. Resolve Configured Secret Login Path
@@ -75,12 +75,12 @@ export const adminRoutes = {
 export function isSecretAdminLoginPath(pathname) {
   if (!pathname || !ADMIN_LOGIN_PATH) return false;
   const cleanPath = pathname.replace(/\/+$/, "");
-  return cleanPath === ADMIN_LOGIN_PATH;
+  return cleanPath === ADMIN_LOGIN_PATH || cleanPath === `${ADMIN_BASE_PATH}/login`;
 }
 
 export function getAdminPath(subRoute = "") {
   if (subRoute === "login" || subRoute === "/login") {
-    return "/admin/login";
+    return adminRoutes.login;
   }
   const clean = subRoute.startsWith("/") ? subRoute : `/${subRoute}`;
   return `${ADMIN_BASE_PATH}${clean}`;
