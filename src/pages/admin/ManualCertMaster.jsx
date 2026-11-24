@@ -118,19 +118,13 @@ const ManualCertMaster = () => {
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pendingPinAction, setPendingPinAction] = useState(null);
 
-  // Self-healing: clear any legacy dummy storage with Alexander Wright
+  // Self-healing: clear legacy dummy storage if obsolete Alexander Wright mock is present
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem("broadbeach_manual_certificates");
-        if (
-          raw &&
-          (raw.includes("Alexander Wright") ||
-            raw.includes("BBA-MC-2026-0001") ||
-            JSON.parse(raw).length < 100)
-        ) {
+        if (raw && (raw.includes("Alexander Wright") || raw.includes("BBA-MC-2026-0001"))) {
           localStorage.removeItem("broadbeach_manual_certificates");
-          localStorage.removeItem("broadbeach_manual_cert_overrides");
         }
       } catch (e) {}
     }

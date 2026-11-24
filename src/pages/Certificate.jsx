@@ -348,13 +348,29 @@ const Certificate = () => {
                     const completedCount = Array.isArray(courseProg?.completedLessonIds) ? courseProg.completedLessonIds.length : 0;
                     const totalLessons = courseProg?.totalLessons || 4;
                     const statePassed = Boolean(location.state?.passed || (location.state?.percentage && Number(location.state.percentage) >= 70) || location.state?.certificate_number);
+
+                    const hasStoredCertificate = () => {
+                        try {
+                            const certs = JSON.parse(localStorage.getItem("bb_certificates") || "[]");
+                            if (certs.some(c => String(c.certification_id) === String(canonicalCourseId) || String(c.course_id) === String(canonicalCourseId) || c.certificate_number === String(id).trim())) {
+                                return true;
+                            }
+                            const hasAccess = localStorage.getItem(`certificate_access_${canonicalCourseId}`) === "true";
+                            const hasCertNum = Boolean(localStorage.getItem(`certificate_number_${canonicalCourseId}`));
+                            return hasAccess || hasCertNum;
+                        } catch (e) {
+                            return false;
+                        }
+                    };
+
                     const isFullyCompleted = Boolean(
                         statePassed ||
                         courseProg?.isCompleted ||
                         courseProg?.assessmentPassed ||
                         (courseProg?.percentage && Number(courseProg.percentage) >= 70) ||
                         (completedCount > 0 && completedCount >= totalLessons) ||
-                        Boolean(courseProg?.certificateRecord)
+                        Boolean(courseProg?.certificateRecord) ||
+                        hasStoredCertificate()
                     );
 
                     if (!isFullyCompleted) {

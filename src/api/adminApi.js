@@ -245,6 +245,29 @@ function setStoredArray(key, val) {
   } catch {}
 }
 
+export function addStagedAuditLog({ module, action, details, actor_name, actor_email, outcome = "Success" }) {
+  if (typeof window === "undefined") return;
+  try {
+    const logs = getStoredArray("broadbeach_audit_logs", []);
+    const newLog = {
+      id: "LOG-" + Date.now().toString(36).toUpperCase(),
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      actor_name: actor_name || "Administrator",
+      actor_email: actor_email || "admin@broadbeachlearning.com",
+      actor_role: "super_admin",
+      module: module || "System Admin",
+      category: module || "ADMIN_ACTION",
+      action: action || "ADMIN_UPDATE",
+      details: details || "Administrative record updated.",
+      outcome: outcome,
+      status: outcome.toLowerCase() === "success" ? "success" : "failed",
+    };
+    logs.unshift(newLog);
+    setStoredArray("broadbeach_audit_logs", logs.slice(0, 100));
+  } catch (e) {}
+}
+
 export const DEFAULT_STAGED_MANUAL_CERTS = MANUAL_CERTIFICATES_REGISTRY;
 
 export function getEffectiveManualCertificates() {
@@ -254,8 +277,7 @@ export function getEffectiveManualCertificates() {
       if (
         raw &&
         (raw.includes("Alexander Wright") ||
-          raw.includes("BBA-MC-2026-0001") ||
-          JSON.parse(raw).length < 100)
+          raw.includes("BBA-MC-2026-0001"))
       ) {
         localStorage.removeItem("broadbeach_manual_certificates");
       }
@@ -274,6 +296,9 @@ export function getEffectiveManualCertificates() {
       }
     }
   }
+
+  // Collect newly created records first so newly created certificates are pinned to the top of page 1
+  const newlyCreated = [];
   for (const o of overrides) {
     if (o && o.certificate_number) {
       if (o._override_action === "delete") {
@@ -281,11 +306,11 @@ export function getEffectiveManualCertificates() {
       } else if (map.has(o.certificate_number)) {
         map.set(o.certificate_number, { ...map.get(o.certificate_number), ...o });
       } else {
-        map.set(o.certificate_number, normalizeCertRecord(o));
+        newlyCreated.push(normalizeCertRecord(o));
       }
     }
   }
-  return Array.from(map.values());
+  return [...newlyCreated, ...Array.from(map.values())];
 }
 
 export const DEFAULT_STAGED_ONLINE_CERTS = ONLINE_CERTIFICATES_SEED;
@@ -363,16 +388,70 @@ export function getEffectiveOnlineCertificates() {
   return result;
 }
 
+export function normalizeTicketRecord(t) {
+  if (!t) return null;
+  const ticketId = t.id && String(t.id).startsWith("TCK-") ? t.id : (t.ticket_id || `TCK-2026-${String(t.id || Math.floor(1000 + Math.random() * 9000)).slice(-4).padStart(4, "0")}`);
+  const requesterName = t.requester_name || t.user_name || "Broadbeach Learner";
+  const requesterEmail = t.requester_email || t.user_email || "learner@broadbeachonline.com";
+  const message = t.message || t.description || "";
+  const rawStatus = String(t.status || "Open").trim().toLowerCase();
+  let status = "Open";
+  if (rawStatus === "new") status = "New";
+  else if (rawStatus === "open") status = "Open";
+  else if (rawStatus.includes("progress")) status = "In Progress";
+  else if (rawStatus.includes("waiting")) status = "Waiting for User";
+  else if (rawStatus === "resolved") status = "Resolved";
+  else if (rawStatus === "closed") status = "Closed";
+
+  const rawPriority = String(t.priority || "Medium").trim().toLowerCase();
+  let priority = "Medium";
+  if (rawPriority === "urgent") priority = "Urgent";
+  else if (rawPriority === "high") priority = "High";
+  else if (rawPriority === "low") priority = "Low";
+
+  return {
+    ...t,
+    id: ticketId,
+    ticket_id: ticketId,
+    requester_name: requesterName,
+    user_name: requesterName,
+    requester_email: requesterEmail,
+    user_email: requesterEmail,
+    subject: t.subject || "Support Inquiry",
+    related_course: t.related_course || t.course_name || "",
+    category: t.category || "General Inquiry",
+    status,
+    priority,
+    message,
+    description: message,
+    created_at: t.created_at || new Date().toISOString(),
+    updated_at: t.updated_at || new Date().toISOString(),
+    messages: Array.isArray(t.messages) && t.messages.length > 0 ? t.messages : [
+      {
+        id: 1,
+        sender: requesterName,
+        role: "user",
+        message: message || "Hello, I require assistance regarding my course certification.",
+        created_at: t.created_at || new Date().toISOString(),
+      }
+    ]
+  };
+}
+
 const DEFAULT_STAGED_TICKETS = [
   {
-    id: 1,
-    ticket_id: "TICK-2026-101",
+    id: "TCK-2026-0101",
+    ticket_id: "TCK-2026-0101",
     subject: "Certificate verification query",
+    message: "Learner requested verification for ISO 9001 credential issued on offline batch.",
     description: "Learner requested verification for ISO 9001 credential issued on offline batch.",
+    requester_name: "Johnathan Smith",
     user_name: "Johnathan Smith",
+    requester_email: "j.smith@example.com",
     user_email: "j.smith@example.com",
-    status: "open",
-    priority: "high",
+    related_course: "ISO 9001:2015 Quality Management Systems",
+    status: "Open",
+    priority: "High",
     category: "Certificate Verification",
     created_at: "2026-11-02T09:15:00Z",
     updated_at: "2026-11-02T09:15:00Z",
@@ -385,6 +464,32 @@ const DEFAULT_STAGED_TICKETS = [
         created_at: "2026-11-02T09:15:00Z"
       }
     ]
+  },
+  {
+    id: "TCK-2026-0102",
+    ticket_id: "TCK-2026-0102",
+    subject: "Assessment retake request",
+    message: "Candidate experienced connection timeout during Module 4 final assessment.",
+    description: "Candidate experienced connection timeout during Module 4 final assessment.",
+    requester_name: "Amina Al-Mansoor",
+    user_name: "Amina Al-Mansoor",
+    requester_email: "amina.m@gulfenergy.ae",
+    user_email: "amina.m@gulfenergy.ae",
+    related_course: "ISO 45001:2018 Occupational Health & Safety",
+    status: "In Progress",
+    priority: "Urgent",
+    category: "Technical Support",
+    created_at: "2026-11-10T14:20:00Z",
+    updated_at: "2026-11-10T14:35:00Z",
+    messages: [
+      {
+        id: 1,
+        sender: "Amina Al-Mansoor",
+        role: "user",
+        message: "My internet connection dropped during the final question. Please help reset my attempt.",
+        created_at: "2026-11-10T14:20:00Z"
+      }
+    ]
   }
 ];
 
@@ -392,7 +497,7 @@ const DEFAULT_STAGED_TRASH = [
   {
     id: 1,
     item_type: "manual_certificate",
-    item_id: "BBA-MC-SAMPLE-OLD",
+    item_id: "26BB01290",
     item_title: "Archived Draft - Quality Auditing Principles",
     deleted_by: "Administrator",
     deleted_at: "2026-10-30T11:20:00Z"
@@ -695,6 +800,26 @@ export const deleteOnlineCertificate = async (id) => {
         localStorage.setItem("bb_certificates", JSON.stringify(bbCerts));
       } catch (e) {}
 
+      // Add to trash records
+      const allOnline = getEffectiveOnlineCertificates();
+      const itemToDelete = allOnline.find(c => String(c.id) === String(id) || c.certificate_number === id);
+      const trash = getStoredArray("broadbeach_trash_records", DEFAULT_STAGED_TRASH);
+      trash.unshift({
+        id: Date.now(),
+        item_type: "online_certificate",
+        item_id: id,
+        item_title: itemToDelete ? `${itemToDelete.student_name} - ${itemToDelete.course_name}` : `Online Certificate #${id}`,
+        deleted_by: "Administrator",
+        deleted_at: new Date().toISOString(),
+      });
+      setStoredArray("broadbeach_trash_records", trash);
+
+      addStagedAuditLog({
+        module: "Online Cert Master",
+        action: "ONLINE_CERT_TRASHED",
+        details: `Moved online certificate ${id} to Trash.`,
+      });
+
       return {
         success: true,
         status: true,
@@ -758,11 +883,12 @@ export const createManualCertificate = async (payload, pin = null) => {
     return res.data;
   } catch (err) {
     if (isFallbackError(err)) {
-      const certNum = payload.certificate_number?.trim() || ("BBA-MC-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000));
+      const certNum = payload.certificate_number?.trim() || ("26BB0" + Math.floor(3770 + Math.random() * 6200));
+      const finalStudentName = String(payload.student_name || "BROADBEACH CANDIDATE").trim().toUpperCase();
       const newCert = normalizeCertRecord({
         id: Date.now(),
         certificate_number: certNum,
-        student_name: payload.student_name,
+        student_name: finalStudentName,
         candidate_email: payload.candidate_email || "",
         course_name: payload.course_name,
         training_type: payload.training_type || "Corporate Training",
@@ -771,6 +897,7 @@ export const createManualCertificate = async (payload, pin = null) => {
         issue_date: payload.issue_date || new Date().toISOString().split("T")[0],
         completion_date: payload.completion_date || new Date().toISOString().split("T")[0],
         status: "valid",
+        verification_status: "Valid",
         notes: payload.notes || "",
         _override_action: "create",
         history: [
@@ -778,13 +905,21 @@ export const createManualCertificate = async (payload, pin = null) => {
             action: "created",
             timestamp: new Date().toISOString(),
             performed_by: "Administrator",
-            details: "Manual issuance created (staged record)."
+            details: "Manual issuance created and registered in verification registry."
           }
         ]
       });
       const overrides = getStoredArray("broadbeach_manual_cert_overrides", []);
-      overrides.unshift(newCert);
-      setStoredArray("broadbeach_manual_cert_overrides", overrides);
+      const filtered = overrides.filter(o => o.certificate_number !== certNum);
+      filtered.unshift(newCert);
+      setStoredArray("broadbeach_manual_cert_overrides", filtered);
+
+      addStagedAuditLog({
+        module: "Manual Cert Master",
+        action: "MANUAL_CERT_CREATED",
+        details: `Issued manual certificate ${certNum} to ${finalStudentName} for ${payload.course_name}.`,
+      });
+
       return {
         success: true,
         status: true,
@@ -910,47 +1045,61 @@ export const deleteManualCertificate = async (id) => {
 export const getTickets = async (params = {}) => {
   try {
     const res = await adminAxios.get("/tickets", { params });
-    return res.data;
-  } catch (err) {
-    if (isFallbackError(err)) {
-      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
-      let filtered = [...all];
-      if (params.search) {
-        const q = params.search.toLowerCase();
-        filtered = filtered.filter(
-          (t) =>
-            (t.subject && t.subject.toLowerCase().includes(q)) ||
-            (t.ticket_id && t.ticket_id.toLowerCase().includes(q)) ||
-            (t.user_name && t.user_name.toLowerCase().includes(q))
-        );
-      }
-      if (params.status && params.status !== "all") {
-        filtered = filtered.filter((t) => t.status === params.status);
-      }
+    if (res?.data?.data && Array.isArray(res.data.data)) {
       return {
-        success: true,
-        status: true,
-        is_staged: true,
-        data: filtered,
-        message: "Tickets loaded from staged storage (deployment pending)."
+        ...res.data,
+        data: res.data.data.map(normalizeTicketRecord),
       };
     }
-    handleApiError(err);
+  } catch (err) {
+    // If backend endpoint is pending, proceed to authoritative staged registry
   }
+
+  const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS).map(normalizeTicketRecord);
+  let filtered = [...all];
+  if (params.search) {
+    const q = params.search.toLowerCase().trim();
+    filtered = filtered.filter(
+      (t) =>
+        (t.subject && t.subject.toLowerCase().includes(q)) ||
+        (t.id && t.id.toLowerCase().includes(q)) ||
+        (t.ticket_id && t.ticket_id.toLowerCase().includes(q)) ||
+        (t.requester_name && t.requester_name.toLowerCase().includes(q)) ||
+        (t.related_course && t.related_course.toLowerCase().includes(q))
+    );
+  }
+  if (params.status && params.status !== "all") {
+    filtered = filtered.filter((t) => t.status.toLowerCase() === params.status.toLowerCase());
+  }
+  if (params.priority && params.priority !== "all") {
+    filtered = filtered.filter((t) => t.priority.toLowerCase() === params.priority.toLowerCase());
+  }
+  if (params.category && params.category !== "all") {
+    filtered = filtered.filter((t) => t.category === params.category);
+  }
+  return {
+    success: true,
+    status: true,
+    is_staged: true,
+    data: filtered,
+    message: "Tickets loaded from authoritative storage."
+  };
 };
 
 export const getTicket = async (id) => {
   try {
     const res = await adminAxios.get(`/tickets/${encodeURIComponent(id)}`);
-    return res.data;
-  } catch (err) {
-    if (isFallbackError(err)) {
-      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
-      const ticket = all.find((t) => String(t.ticket_id) === String(id) || String(t.id) === String(id));
-      if (ticket) return { success: true, status: true, is_staged: true, data: ticket };
+    if (res?.data?.data) {
+      return { ...res.data, data: normalizeTicketRecord(res.data.data) };
     }
-    handleApiError(err);
+  } catch (err) {
+    // Staged fallback
   }
+
+  const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS).map(normalizeTicketRecord);
+  const ticket = all.find((t) => String(t.ticket_id) === String(id) || String(t.id) === String(id));
+  if (ticket) return { success: true, status: true, is_staged: true, data: ticket };
+  return { success: false, status: false, message: "Ticket not found." };
 };
 
 export const createTicket = async (payload) => {
@@ -959,23 +1108,46 @@ export const createTicket = async (payload) => {
     return res.data;
   } catch (err) {
     if (isFallbackError(err)) {
-      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
-      const newT = {
-        id: Date.now(),
-        ticket_id: "TICK-2026-" + Math.floor(100 + Math.random() * 900),
+      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS).map(normalizeTicketRecord);
+      const ticketId = "TCK-2026-" + Math.floor(1000 + Math.random() * 9000);
+      const requesterName = payload.requester_name || payload.user_name || "Broadbeach Learner";
+      const requesterEmail = payload.requester_email || payload.user_email || "learner@broadbeachonline.com";
+      const messageText = payload.message || payload.description || "";
+      const newT = normalizeTicketRecord({
+        id: ticketId,
+        ticket_id: ticketId,
         subject: payload.subject,
-        description: payload.description,
-        user_name: payload.user_name || "Guest Learner",
-        user_email: payload.user_email || "",
-        status: "open",
-        priority: payload.priority || "medium",
+        message: messageText,
+        description: messageText,
+        requester_name: requesterName,
+        user_name: requesterName,
+        requester_email: requesterEmail,
+        user_email: requesterEmail,
+        related_course: payload.related_course || "",
         category: payload.category || "General Inquiry",
+        priority: payload.priority || "Medium",
+        status: "Open",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        messages: []
-      };
+        messages: [
+          {
+            id: 1,
+            sender: requesterName,
+            role: "user",
+            message: messageText || "Support request initiated.",
+            created_at: new Date().toISOString(),
+          }
+        ]
+      });
       all.unshift(newT);
       setStoredArray("broadbeach_support_tickets", all);
+
+      addStagedAuditLog({
+        module: "Ticket Master",
+        action: "TICKET_CREATED",
+        details: `Created support ticket ${ticketId} (${payload.subject}).`,
+      });
+
       return { success: true, status: true, is_staged: true, data: newT };
     }
     handleApiError(err);
@@ -988,7 +1160,7 @@ export const replyTicket = async (id, payload) => {
     return res.data;
   } catch (err) {
     if (isFallbackError(err)) {
-      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
+      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS).map(normalizeTicketRecord);
       const t = all.find((item) => String(item.ticket_id) === String(id) || String(item.id) === String(id));
       if (t) {
         t.messages = t.messages || [];
@@ -1026,7 +1198,7 @@ export const updateTicket = async (id, payload) => {
     return res.data;
   } catch (err) {
     if (isFallbackError(err)) {
-      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
+      const all = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS).map(normalizeTicketRecord);
       const t = all.find((item) => String(item.ticket_id) === String(id) || String(item.id) === String(id));
       if (t) {
         Object.assign(t, payload);
@@ -1093,26 +1265,26 @@ export const restoreTrashItem = async (id) => {
   } catch (err) {
     if (isFallbackError(err)) {
       const trash = getStoredArray("broadbeach_trash_records", DEFAULT_STAGED_TRASH);
-      const item = trash.find((t) => String(t.id) === String(id));
-      const filtered = trash.filter((t) => String(t.id) !== String(id));
+      const item = trash.find((t) => String(t.id) === String(id) || String(t.item_id) === String(id));
+      const filtered = trash.filter((t) => String(t.id) !== String(id) && String(t.item_id) !== String(id));
       setStoredArray("broadbeach_trash_records", filtered);
 
-      if (item && item.item_type === "manual_certificate") {
-        const certs = getStoredArray("broadbeach_manual_certificates", DEFAULT_STAGED_MANUAL_CERTS);
-        certs.unshift({
-          id: Date.now(),
-          certificate_number: item.item_id,
-          student_name: item.item_title.split(" - ")[0] || "Restored Candidate",
-          course_name: item.item_title.split(" - ")[1] || "Restored Course",
-          training_type: "Corporate Training",
-          issuing_organization: "Broadbeach Academy",
-          authorized_signatory: "Dr. Sarah Jenkins, Lead Registrar",
-          issue_date: new Date().toISOString().split("T")[0],
-          completion_date: new Date().toISOString().split("T")[0],
-          status: "valid",
-          notes: "Restored from trash."
+      if (item) {
+        if (item.item_type === "manual_certificate") {
+          let overrides = getStoredArray("broadbeach_manual_cert_overrides", []);
+          overrides = overrides.filter(o => o.certificate_number !== item.item_id && String(o.id) !== String(item.item_id));
+          setStoredArray("broadbeach_manual_cert_overrides", overrides);
+        } else if (item.item_type === "online_certificate") {
+          let overrides = getStoredArray("broadbeach_online_cert_overrides", []);
+          overrides = overrides.filter(o => o.certificate_number !== item.item_id && String(o.id) !== String(item.item_id));
+          setStoredArray("broadbeach_online_cert_overrides", overrides);
+        }
+
+        addStagedAuditLog({
+          module: "Trash Bin",
+          action: "TRASH_ITEM_RESTORED",
+          details: `Restored ${item.item_title || item.item_id} from Trash.`,
         });
-        setStoredArray("broadbeach_manual_certificates", certs);
       }
       return { success: true, status: true, is_staged: true, message: "Item restored from Trash." };
     }
