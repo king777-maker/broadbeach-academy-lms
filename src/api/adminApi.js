@@ -673,21 +673,29 @@ export const globalSearch = async (q) => {
 ============================================================================ */
 
 export const getOnlineCertificates = async (params = {}) => {
+  // 1. Primary: Fetch central server-side database records
   try {
-    const res = await adminAxios.get("/online-certificates", { params });
-    if (res?.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-      const effective = getEffectiveOnlineCertificates();
-      const existing = new Set(res.data.data.map(c => String(c.certificate_number || "").toUpperCase().trim()));
-      const unmerged = effective.filter(c => !existing.has(String(c.certificate_number || "").toUpperCase().trim()));
+    let res;
+    try {
+      res = await adminAxios.get("/online-certificates", { params });
+    } catch (e1) {
+      // Fallback to standalone GoDaddy script
+      res = await adminAxios.get("/get_admin_certificates.php", { params });
+    }
+
+    if (res?.data && (Array.isArray(res.data.data) || Array.isArray(res.data))) {
+      const records = Array.isArray(res.data.data) ? res.data.data : res.data;
       return {
-        ...res.data,
-        data: [...unmerged, ...res.data.data],
+        success: true,
+        data: records,
+        count: records.length,
       };
     }
   } catch (err) {
-    // If backend endpoint is pending/fails, proceed to authoritative effective registry
+    console.warn("Central server fetch notice in getOnlineCertificates:", err?.message);
   }
 
+  // 2. Secondary fallback for offline / mock testing
   const all = getEffectiveOnlineCertificates();
   let filtered = [...all];
   if (params.search) {

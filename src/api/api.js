@@ -235,14 +235,50 @@ export const submitAssessment = (data) => {
 };
 
 /* =========================================
-   CREATE CERTIFICATE
+   CREATE & PERSIST CERTIFICATE TO CENTRAL SERVER
 ========================================= */
 
-export const createCertificate = (data) => {
-    return api.post(
-        "/create-certificate",
-        data
-    );
+export const createCertificate = async (data) => {
+    // Normalise payload for MySQL schema compatibility
+    const payload = {
+        ...data,
+        certificate_code: data.certificate_code || data.certificate_number,
+        certificate_number: data.certificate_number || data.certificate_code,
+        student_name: String(data.student_name || "").toUpperCase().trim(),
+        student_email: data.student_email || data.candidate_email || data.email || "certified@broadbeachonline.com",
+        course_id: String(data.course_id || data.certification_id || ""),
+        course_title: data.course_title || data.course_name || "Professional Credential",
+        course_name: data.course_name || data.course_title || "Professional Credential",
+        score: Number(data.score ?? 10),
+        total_questions: Number(data.total_questions ?? data.total ?? 10),
+        percentage: Number(data.percentage ?? 100),
+        status: data.status || "valid",
+        verification_status: data.verification_status || "Valid",
+        issue_date: data.issue_date || data.issued_at || new Date().toISOString(),
+    };
+
+    try {
+        const response = await api.post(
+            "/create-certificate",
+            payload
+        );
+        return response;
+    } catch (primaryErr) {
+        // Fallback to standalone GoDaddy endpoint if /create-certificate fails or returns 404
+        try {
+            const fallbackResponse = await api.post(
+                "/save_certificate.php",
+                payload
+            );
+            return fallbackResponse;
+        } catch (secondaryErr) {
+            console.error(
+                "Central Certificate Persistence Error:",
+                primaryErr?.response?.data || primaryErr?.message || secondaryErr?.message
+            );
+            throw primaryErr;
+        }
+    }
 };
 
 // =====================================================

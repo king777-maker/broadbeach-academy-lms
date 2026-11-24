@@ -64,6 +64,8 @@ const Result = () => {
 
     const [loadingResult, setLoadingResult] = useState(!state);
     const [downloading, setDownloading] = useState(false);
+    const [isSavingCert, setIsSavingCert] = useState(false);
+    const [certSavedSuccess, setCertSavedSuccess] = useState(false);
     const [availableCertificates, setAvailableCertificates] = useState([]);
     const [selectedCertIndex, setSelectedCertIndex] = useState(0);
 
@@ -269,35 +271,59 @@ const Result = () => {
         (rawFinalCert && !rawFinalCert.startsWith("BBA-") ? rawFinalCert : null) ||
         generateOfficialCertificateNumber(canonicalId, resolveUserId(authUser?.id));
 
-    // Automatically synchronize course completion when passing
+    // Automatically synchronize course completion and persist to central server
     useEffect(() => {
+        let isMounted = true;
         if (isPassed && canonicalId) {
-            try {
-                const uId = state?.userId || resolveUserId(authUser?.id);
-                markCourseCompleted(uId, canonicalId, {
-                    certificate_number: finalCertificateNumber,
-                    student_name: resolvedStudentName,
-                    course_name: authoritativeCourseName,
-                    score,
-                    total,
-                    percentage,
-                });
+            const syncCertificateToServer = async () => {
+                const u = authUser || (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("bb_user") || localStorage.getItem("user") || "{}") : {});
+                const uId = state?.userId || resolveUserId(u?.id);
+                const candidateEmail = u?.email || "learner@broadbeachonline.com";
 
-                // Auto-issue certificate to backend & admin registry immediately on landing on Result
-                createCertificate({
-                    user_id: uId,
-                    certification_id: canonicalId,
-                    student_name: resolvedStudentName,
-                    course_name: authoritativeCourseName,
-                    score,
-                    total,
-                    percentage,
-                    certificate_number: finalCertificateNumber,
-                }).catch((ce) => console.warn("Result page background certificate issuance notice:", ce));
-            } catch (e) {
-                console.warn("Auto completion sync notice:", e);
-            }
+                try {
+                    markCourseCompleted(uId, canonicalId, {
+                        certificate_number: finalCertificateNumber,
+                        student_name: resolvedStudentName,
+                        course_name: authoritativeCourseName,
+                        score,
+                        total,
+                        percentage,
+                    });
+
+                    if (isMounted) setIsSavingCert(true);
+
+                    // Persist to Central GoDaddy Database immediately
+                    await createCertificate({
+                        user_id: uId,
+                        certification_id: canonicalId,
+                        course_id: canonicalId,
+                        student_name: resolvedStudentName,
+                        student_email: candidateEmail,
+                        course_title: authoritativeCourseName,
+                        course_name: authoritativeCourseName,
+                        score,
+                        total,
+                        total_questions: total,
+                        percentage,
+                        certificate_code: finalCertificateNumber,
+                        certificate_number: finalCertificateNumber,
+                    });
+
+                    if (isMounted) {
+                        setCertSavedSuccess(true);
+                        setIsSavingCert(false);
+                    }
+                } catch (ce) {
+                    console.warn("Result page central certificate persistence notice:", ce);
+                    if (isMounted) {
+                        setIsSavingCert(false);
+                    }
+                }
+            };
+
+            syncCertificateToServer();
         }
+        return () => { isMounted = false; };
     }, [isPassed, canonicalId, state?.userId, authUser?.id, finalCertificateNumber, resolvedStudentName, authoritativeCourseName, score, total, percentage]);
 
     // =========================================================

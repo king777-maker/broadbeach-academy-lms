@@ -185,14 +185,29 @@ const Certificate = () => {
                 || "Verified Learner";
 
             try {
+                const resolvedEmail = loggedInUser?.email || "learner@broadbeachonline.com";
+                const directCertNum =
+                    certificate_number ||
+                    location.state?.certificate_number ||
+                    (typeof localStorage !== "undefined" && localStorage.getItem(`certificate_number_${canonicalCourseId}`)) ||
+                    generateOfficialCertificateNumber(canonicalCourseId, resolveUserId());
+
+                const courseTitle = getAuthoritativeCourseName(canonicalCourseId, certificationData?.name || certificationData?.title) || "Professional Credential";
+
                 const payload = {
                     user_id: Number(loggedInUser?.id || resolveUserId()),
                     certification_id: canonicalCourseId,
+                    course_id: canonicalCourseId,
                     student_name: candidateName,
+                    student_email: resolvedEmail,
+                    course_name: courseTitle,
+                    course_title: courseTitle,
                     score: Number(score) || 10,
                     total: Number(total) || 10,
+                    total_questions: Number(total) || 10,
                     percentage: Number(percentage) || 100,
-                    course_name: getAuthoritativeCourseName(canonicalCourseId, certificationData?.name || certificationData?.title) || "",
+                    certificate_code: directCertNum,
+                    certificate_number: directCertNum,
                 };
 
                 console.log("CERTIFICATE PAYLOAD:", payload);
