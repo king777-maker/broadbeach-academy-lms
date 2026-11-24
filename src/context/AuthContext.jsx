@@ -208,29 +208,78 @@ export const AuthProvider = ({ children }) => {
       });
     } catch (ce) {}
 
+    const parts = [data.first_name, data.second_name, data.last_name].filter(Boolean);
+    const calculatedFullName = parts.join(" ").trim() || data.name || "Student";
+    const selectedCountry = data.country || "India";
+
+    const persistToLearnersRegistry = (userObj) => {
+      try {
+        const raw = localStorage.getItem("broadbeach_registered_users");
+        let list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        const existingIdx = list.findIndex(
+          (u) => u.email && String(u.email).toLowerCase() === String(userObj.email).toLowerCase()
+        );
+        const record = {
+          id: userObj.id || Date.now(),
+          first_name: userObj.first_name || data.first_name || "",
+          second_name: userObj.second_name || data.second_name || "",
+          last_name: userObj.last_name || data.last_name || "",
+          name: userObj.name || calculatedFullName,
+          full_name: userObj.full_name || calculatedFullName,
+          email: userObj.email || data.email || "",
+          phone: userObj.phone || data.phone || "",
+          country: userObj.country || selectedCountry,
+          registered_at: userObj.registered_at || new Date().toISOString(),
+          status: "active",
+          role: "learner",
+        };
+        if (existingIdx >= 0) {
+          list[existingIdx] = { ...list[existingIdx], ...record };
+        } else {
+          list.unshift(record);
+        }
+        localStorage.setItem("broadbeach_registered_users", JSON.stringify(list));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("bb_user_registered", { detail: record }));
+        }
+      } catch (e) {
+        console.warn("Learner registry sync warning:", e);
+      }
+    };
+
     try {
-      const response = await registerUser(data);
+      const response = await registerUser({
+        ...data,
+        name: calculatedFullName,
+        country: selectedCountry,
+      });
       if (response?.data?.success) {
         const resData = response.data?.data || {};
         const fullName =
           resData.name ||
           resData.full_name ||
-          `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
-          "Student";
+          calculatedFullName;
 
         const newUserData = {
           first_name: data.first_name || resData.first_name || "",
+          second_name: data.second_name || "",
           last_name: data.last_name || resData.last_name || "",
           name: fullName,
           full_name: fullName,
           email: data.email || resData.email || "",
           phone: data.phone || resData.phone || "",
+          country: data.country || selectedCountry,
+          registered_at: new Date().toISOString(),
           id: resData.id || resData.user_id || Date.now(),
           user_id: resData.id || resData.user_id || Date.now(),
+          role: "learner",
+          status: "active",
           ...resData,
         };
 
         saveUserLocally(newUserData);
+        persistToLearnersRegistry(newUserData);
         return { success: true, data: newUserData };
       }
       return {
@@ -239,18 +288,23 @@ export const AuthProvider = ({ children }) => {
       };
     } catch (err) {
       // In offline / fallback test mode: construct authenticated user locally
-      const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim() || "Student";
       const localUserData = {
         first_name: data.first_name || "",
+        second_name: data.second_name || "",
         last_name: data.last_name || "",
-        name: fullName,
-        full_name: fullName,
+        name: calculatedFullName,
+        full_name: calculatedFullName,
         email: data.email || "",
         phone: data.phone || "",
+        country: selectedCountry,
+        registered_at: new Date().toISOString(),
         id: Date.now(),
         user_id: Date.now(),
+        role: "learner",
+        status: "active",
       };
       saveUserLocally(localUserData);
+      persistToLearnersRegistry(localUserData);
       return { success: true, data: localUserData };
     }
   };

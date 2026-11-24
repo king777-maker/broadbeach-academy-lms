@@ -3,12 +3,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAdmin } from "../../context/AdminContext";
 import {
   getOnlineCertificates,
+  updateOnlineCertificate,
   revokeOnlineCertificate,
   reissueOnlineCertificate,
   deleteOnlineCertificate,
   isDummyOnlineCert,
 } from "../../api/adminApi";
 import { downloadCertificatePDF } from "../../utils/certificateGenerator";
+import { exportToExcel, exportToCSV, printRegistryReport } from "../../utils/exportUtils";
 import PinVerificationModal from "../../components/Admin/PinVerificationModal";
 import toast from "react-hot-toast";
 import {
@@ -31,6 +33,10 @@ import {
   FaTimes,
   FaShieldAlt,
   FaLock,
+  FaEdit,
+  FaFileExcel,
+  FaFilePdf,
+  FaChevronDown,
 } from "react-icons/fa";
 
 const OnlineCertMaster = () => {
@@ -54,6 +60,120 @@ const OnlineCertMaster = () => {
   const [revokeModalOpen, setRevokeModalOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Edit Certificate Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    student_name: "",
+    candidate_email: "",
+    course_name: "",
+    score: "",
+    percentage: "",
+    issue_date: "",
+    status: "active",
+  });
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+
+  const handleOpenEdit = (cert) => {
+    setSelectedCert(cert);
+    setEditForm({
+      student_name: cert.student_name || "",
+      candidate_email: cert.candidate_email || "",
+      course_name: cert.course_name || "",
+      score: cert.score !== undefined ? String(cert.score) : "",
+      percentage: cert.percentage !== undefined ? String(cert.percentage) : "",
+      issue_date: cert.issue_date || cert.completion_date || new Date().toISOString().split("T")[0],
+      status: cert.status || "active",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.student_name.trim() || !editForm.course_name.trim()) {
+      toast.error("Candidate name and course title are required.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await updateOnlineCertificate(
+        selectedCert.certificate_number || selectedCert.id,
+        {
+          ...editForm,
+          student_name: editForm.student_name.trim().toUpperCase(),
+        }
+      );
+      toast.success("Certificate updated successfully.");
+      setEditModalOpen(false);
+      fetchCertificates(true);
+    } catch (err) {
+      toast.error(err.message || "Failed to update certificate.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCertificates || filteredCertificates.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const records = filteredCertificates.map((c, i) => ({
+      "Sl No": i + 1,
+      "Certificate ID": c.certificate_number || c.id,
+      "Candidate Name": c.student_name,
+      "Email Address": c.candidate_email || "N/A",
+      "Course Title": c.course_name,
+      "Score": c.score || "—",
+      "Percentage": c.percentage ? `${c.percentage}%` : "—",
+      "Issue Date": c.issue_date || c.completion_date || "—",
+      "Status": c.status === "revoked" ? "Revoked" : "Verified",
+    }));
+    exportToExcel(records, `broadbeach_online_certificates_${new Date().toISOString().split("T")[0]}.xlsx`, "Online Certs");
+    toast.success(`Exported ${records.length} online certificates to Excel.`);
+  };
+
+  const handleExportCSV = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCertificates || filteredCertificates.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const records = filteredCertificates.map((c, i) => ({
+      "Sl No": i + 1,
+      "Certificate ID": c.certificate_number || c.id,
+      "Candidate Name": c.student_name,
+      "Email Address": c.candidate_email || "N/A",
+      "Course Title": c.course_name,
+      "Score": c.score || "—",
+      "Percentage": c.percentage ? `${c.percentage}%` : "—",
+      "Issue Date": c.issue_date || c.completion_date || "—",
+      "Status": c.status === "revoked" ? "Revoked" : "Verified",
+    }));
+    exportToCSV(records, `broadbeach_online_certificates_${new Date().toISOString().split("T")[0]}.csv`);
+    toast.success(`Exported ${records.length} online certificates to CSV.`);
+  };
+
+  const handleExportPrint = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCertificates || filteredCertificates.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const headers = ["Cert ID", "Candidate Name", "Email", "Course Title", "Score", "Issued", "Status"];
+    const rows = filteredCertificates.map((c) => [
+      c.certificate_number || c.id,
+      c.student_name,
+      c.candidate_email || "—",
+      c.course_name,
+      c.percentage ? `${c.percentage}%` : (c.score || "—"),
+      c.issue_date || c.completion_date || "—",
+      c.status === "revoked" ? "REVOKED" : "VERIFIED",
+    ]);
+    printRegistryReport("Online Certificate Master Registry", headers, rows);
+  };
 
   // 4-Digit Security PIN Step-Up Verification Modal
   const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -383,6 +503,50 @@ const OnlineCertMaster = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>Live Auto-Sync</span>
           </div>
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportDropdownOpen((prev) => !prev)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <FaDownload className="text-xs" />
+              <span>Export</span>
+              <FaChevronDown className="text-[10px] ml-0.5 opacity-80" />
+            </button>
+
+            {exportDropdownOpen && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-fade-in text-xs font-semibold text-slate-700">
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="w-full px-3.5 py-2 text-left hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFileExcel className="text-emerald-600" />
+                  <span>Export to Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="w-full px-3.5 py-2 text-left hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFileExcel className="text-teal-600" />
+                  <span>Export to CSV (.csv)</span>
+                </button>
+                <div className="h-px bg-slate-100 my-1"></div>
+                <button
+                  type="button"
+                  onClick={handleExportPrint}
+                  className="w-full px-3.5 py-2 text-left hover:bg-rose-50 hover:text-rose-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFilePdf className="text-rose-600" />
+                  <span>Export as PDF / Print</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => fetchCertificates(false)}
@@ -596,6 +760,18 @@ const OnlineCertMaster = () => {
                           >
                             <FaBookOpen size={13} />
                           </button>
+
+                          {/* Edit Certificate (Authorized) */}
+                          {canManageCertificates && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(cert)}
+                              className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                              title="Edit Candidate / Certificate Details"
+                            >
+                              <FaEdit size={13} />
+                            </button>
+                          )}
 
                           {/* Download PDF */}
                           <button
@@ -950,6 +1126,159 @@ const OnlineCertMaster = () => {
                 Close Audit View
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          EDIT ONLINE CERTIFICATE MODAL
+      ========================================================================= */}
+      {editModalOpen && selectedCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-7 relative animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0">
+                  <FaEdit />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#131E4A]">
+                    Edit Online Certificate
+                  </h3>
+                  <span className="text-xs font-mono font-bold text-amber-600">
+                    {selectedCert.certificate_number || selectedCert.id}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Candidate Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.student_name}
+                  onChange={(e) => setEditForm({ ...editForm, student_name: e.target.value })}
+                  placeholder="e.g. MOHAMMAD YOUSUF HUSSAIN"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Name is automatically capitalized for official certificate compliance.
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Candidate Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editForm.candidate_email}
+                  onChange={(e) => setEditForm({ ...editForm, candidate_email: e.target.value })}
+                  placeholder="e.g. candidate@example.com"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Course / Standard Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.course_name}
+                  onChange={(e) => setEditForm({ ...editForm, course_name: e.target.value })}
+                  placeholder="e.g. ISO 9001:2015 Lead Auditor"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Score Achieved
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.score}
+                    onChange={(e) => setEditForm({ ...editForm, score: e.target.value })}
+                    placeholder="e.g. 12"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editForm.percentage}
+                    onChange={(e) => setEditForm({ ...editForm, percentage: e.target.value })}
+                    placeholder="e.g. 92.3"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Issue / Completion Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.issue_date}
+                    onChange={(e) => setEditForm({ ...editForm, issue_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Certificate Status
+                  </label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:border-[#131E4A] outline-none cursor-pointer"
+                  >
+                    <option value="active">Active / Verified</option>
+                    <option value="revoked">Revoked</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-5 py-2 bg-[#131E4A] hover:bg-[#0B1536] text-white font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <FaCheckCircle size={12} />
+                  <span>{actionLoading ? "Saving..." : "Save Changes"}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import {
   updateAdminUser,
   resetAdminMfa,
   getAuditLogs,
+  getRegisteredLearners,
 } from "../../api/adminApi";
 import PinVerificationModal from "../../components/Admin/PinVerificationModal";
 import toast from "react-hot-toast";
@@ -29,6 +30,10 @@ import {
   FaFilter,
   FaLock,
   FaInfoCircle,
+  FaUserGraduate,
+  FaGlobe,
+  FaEnvelope,
+  FaPhone,
 } from "react-icons/fa";
 
 const ROLE_DEFINITIONS = [
@@ -110,6 +115,26 @@ const AdminAccess = () => {
   const [logSearch, setLogSearch] = useState("");
   const [logCategory, setLogCategory] = useState("all");
 
+  // Registered learners state
+  const [learners, setLearners] = useState([]);
+  const [loadingLearners, setLoadingLearners] = useState(false);
+  const [searchLearner, setSearchLearner] = useState("");
+  const [learnerCountryFilter, setLearnerCountryFilter] = useState("all");
+
+  const fetchLearners = async () => {
+    setLoadingLearners(true);
+    try {
+      const res = await getRegisteredLearners();
+      if (res && res.data) {
+        setLearners(res.data);
+      }
+    } catch (e) {
+      console.warn("Could not fetch learners:", e);
+    } finally {
+      setLoadingLearners(false);
+    }
+  };
+
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -179,13 +204,50 @@ const AdminAccess = () => {
 
   useEffect(() => {
     fetchAdmins();
+    fetchLearners();
+    const handleUserRegistered = () => {
+      fetchLearners();
+    };
+    window.addEventListener("bb_user_registered", handleUserRegistered);
+    return () => window.removeEventListener("bb_user_registered", handleUserRegistered);
   }, []);
 
   useEffect(() => {
     if (activeTab === "audit") {
       fetchLogs(logCategory, logSearch);
+    } else if (activeTab === "learners") {
+      fetchLearners();
     }
   }, [activeTab, logCategory]);
+
+  // Filtered Learners
+  const filteredLearners = useMemo(() => {
+    return learners.filter((learner) => {
+      const q = searchLearner.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        learner.name?.toLowerCase().includes(q) ||
+        learner.first_name?.toLowerCase().includes(q) ||
+        learner.second_name?.toLowerCase().includes(q) ||
+        learner.last_name?.toLowerCase().includes(q) ||
+        learner.email?.toLowerCase().includes(q) ||
+        learner.phone?.toLowerCase().includes(q) ||
+        learner.country?.toLowerCase().includes(q);
+
+      const matchCountry =
+        learnerCountryFilter === "all" || learner.country === learnerCountryFilter;
+
+      return matchSearch && matchCountry;
+    });
+  }, [learners, searchLearner, learnerCountryFilter]);
+
+  const distinctLearnerCountries = useMemo(() => {
+    const set = new Set();
+    learners.forEach((l) => {
+      if (l.country) set.add(l.country);
+    });
+    return Array.from(set).sort();
+  }, [learners]);
 
   // Filtered Admins
   const filteredAdmins = useMemo(() => {
@@ -364,6 +426,17 @@ const AdminAccess = () => {
           >
             <FaHistory className="text-xs" />
             Audit Logs
+          </button>
+          <button
+            onClick={() => setActiveTab("learners")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+              activeTab === "learners"
+                ? "bg-[#131E4A] text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <FaUserGraduate className="text-xs" />
+            Learners Directory ({learners.length})
           </button>
         </div>
       </div>
@@ -960,6 +1033,168 @@ const AdminAccess = () => {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 4: REGISTERED LEARNERS DIRECTORY
+         ========================================================================= */}
+      {activeTab === "learners" && (
+        <div className="space-y-4">
+          {/* Action & Filter Bar */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              <div className="relative flex-1">
+                <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                <input
+                  type="text"
+                  placeholder="Search learners by name, second name, email, phone, or country..."
+                  value={searchLearner}
+                  onChange={(e) => setSearchLearner(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:bg-white focus:border-[#131E4A] focus:ring-1 focus:ring-[#131E4A]"
+                />
+              </div>
+
+              {/* Country Filter */}
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 min-w-[180px]">
+                <FaGlobe className="text-slate-400 shrink-0" />
+                <span className="font-semibold text-slate-400 shrink-0">Country:</span>
+                <select
+                  value={learnerCountryFilter}
+                  onChange={(e) => setLearnerCountryFilter(e.target.value)}
+                  className="bg-transparent font-bold text-[#131E4A] focus:outline-none cursor-pointer w-full text-xs"
+                >
+                  <option value="all">All Countries</option>
+                  {distinctLearnerCountries.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLearners}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <FaSyncAlt className={`text-xs ${loadingLearners ? "animate-spin" : ""}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Registered Learners</span>
+              <div className="text-2xl font-black text-[#131E4A] mt-1">{learners.length}</div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Countries Represented</span>
+              <div className="text-2xl font-black text-amber-600 mt-1">{distinctLearnerCountries.length}</div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtered Results</span>
+              <div className="text-2xl font-black text-emerald-600 mt-1">{filteredLearners.length}</div>
+            </div>
+          </div>
+
+          {/* Learners Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#131E4A] text-white uppercase tracking-wider font-semibold text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4">Learner Name</th>
+                    <th className="py-3 px-4">Email Address</th>
+                    <th className="py-3 px-4">Phone Number</th>
+                    <th className="py-3 px-4">Country</th>
+                    <th className="py-3 px-4">Registered Date</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {loadingLearners ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <FaSyncAlt className="animate-spin text-lg mx-auto mb-2 text-[#131E4A]" />
+                        Loading registered learners...
+                      </td>
+                    </tr>
+                  ) : filteredLearners.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        No registered learners matched your query.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLearners.map((u, i) => (
+                      <tr key={u.id || u.email || i} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#131E4A] font-extrabold flex items-center justify-center text-xs shrink-0">
+                              {(u.first_name || u.name || "S")[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900">
+                                {u.first_name ? (
+                                  <>
+                                    <span>{u.first_name}</span>{" "}
+                                    {u.second_name && (
+                                      <span className="text-blue-600 font-semibold">{u.second_name} </span>
+                                    )}
+                                    <span>{u.last_name}</span>
+                                  </>
+                                ) : (
+                                  u.name || "Student"
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400">ID: #{u.id || i + 1}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 whitespace-nowrap font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <FaEnvelope className="text-slate-400 text-[10px]" />
+                            <span>{u.email}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <FaPhone className="text-slate-400 text-[10px]" />
+                            <span>{u.phone || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200/80">
+                            <FaGlobe className="text-amber-600 text-[10px]" />
+                            <span>{u.country || "India"}</span>
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                          {u.registered_at
+                            ? new Date(u.registered_at).toLocaleDateString(undefined, {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : "—"}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <FaCheckCircle className="text-[9px]" />
+                            Active
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

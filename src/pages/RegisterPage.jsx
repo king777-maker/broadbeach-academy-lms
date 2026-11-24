@@ -5,12 +5,14 @@ import {
   FaEnvelope,
   FaLock,
   FaPhone,
+  FaGlobe,
   FaShieldAlt,
   FaArrowRight,
   FaExclamationCircle,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { GLOBAL_COUNTRIES, DEFAULT_COUNTRY } from "../data/countriesData";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -28,9 +30,11 @@ const RegisterPage = () => {
 
   const [formData, setFormData] = useState({
     first_name: "",
+    second_name: "",
     last_name: "",
     email: "",
     phone: "",
+    country: DEFAULT_COUNTRY,
     country_code: "+91",
     password: "",
     confirm_password: "",
@@ -131,7 +135,7 @@ const RegisterPage = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   First Name <span className="text-rose-500">*</span>
@@ -145,9 +149,23 @@ const RegisterPage = () => {
                     value={formData.first_name}
                     onChange={handleChange}
                     placeholder="John"
-                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Second Name <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  name="second_name"
+                  value={formData.second_name}
+                  onChange={handleChange}
+                  placeholder="Robert"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
+                />
               </div>
 
               <div>
@@ -161,8 +179,49 @@ const RegisterPage = () => {
                   value={formData.last_name}
                   onChange={handleChange}
                   placeholder="Doe"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Country Name <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <FaGlobe className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
+                  <select
+                    name="country"
+                    required
+                    value={formData.country}
+                    onChange={handleChange}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white font-medium cursor-pointer"
+                  >
+                    {GLOBAL_COUNTRIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <FaPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+91 98765 43210"
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
+                  />
+                </div>
               </div>
             </div>
 
@@ -179,23 +238,6 @@ const RegisterPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="john.doe@company.com"
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Phone Number
-              </label>
-              <div className="relative">
-                <FaPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="9876543210"
                   className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-hidden focus:border-[#131E4A] focus:ring-2 focus:ring-[#131E4A]/15 bg-slate-50/50 focus:bg-white"
                 />
               </div>

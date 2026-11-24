@@ -6,11 +6,13 @@ import {
   FaLock,
   FaUser,
   FaPhone,
+  FaGlobe,
   FaSyncAlt,
   FaShieldAlt,
   FaCheckCircle
 } from "react-icons/fa";
 import toast from "react-hot-toast";
+import { GLOBAL_COUNTRIES, DEFAULT_COUNTRY } from "../../data/countriesData";
 
 const generateCaptcha = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -35,7 +37,10 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
 
   // Register form state
   const [registerForm, setRegisterForm] = useState({
-    name: "",
+    first_name: "",
+    second_name: "",
+    last_name: "",
+    country: DEFAULT_COUNTRY,
     email: "",
     phone: "",
     password: "",
@@ -109,7 +114,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!registerForm.name || !registerForm.email || !registerForm.password) {
+    if (!registerForm.first_name?.trim() || !registerForm.last_name?.trim() || !registerForm.email?.trim() || !registerForm.password) {
       toast.error("Please complete all required fields.");
       return;
     }
@@ -120,15 +125,52 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
       return;
     }
 
-    const nameParts = registerForm.name.trim().split(" ");
-    const firstName = nameParts[0] || "Student";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const nameParts = [registerForm.first_name, registerForm.second_name, registerForm.last_name].filter(Boolean);
+    const fullName = nameParts.join(" ").trim() || "Student";
+    const userCountry = registerForm.country || "India";
+
+    const persistToLearnersRegistry = (userObj) => {
+      try {
+        const raw = localStorage.getItem("broadbeach_registered_users");
+        let list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        const existingIdx = list.findIndex(
+          (u) => u.email && String(u.email).toLowerCase() === String(userObj.email).toLowerCase()
+        );
+        const record = {
+          id: userObj.id || Date.now(),
+          first_name: registerForm.first_name,
+          second_name: registerForm.second_name,
+          last_name: registerForm.last_name,
+          name: fullName,
+          full_name: fullName,
+          email: userObj.email || registerForm.email.trim(),
+          phone: userObj.phone || registerForm.phone || "",
+          country: userCountry,
+          registered_at: new Date().toISOString(),
+          status: "active",
+          role: "learner",
+        };
+        if (existingIdx >= 0) {
+          list[existingIdx] = { ...list[existingIdx], ...record };
+        } else {
+          list.unshift(record);
+        }
+        localStorage.setItem("broadbeach_registered_users", JSON.stringify(list));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("bb_user_registered", { detail: record }));
+        }
+      } catch (e) {}
+    };
 
     try {
       setSubmitting(true);
       const res = await registerUser({
-        first_name: firstName,
-        last_name: lastName,
+        first_name: registerForm.first_name.trim(),
+        second_name: registerForm.second_name.trim(),
+        last_name: registerForm.last_name.trim(),
+        name: fullName,
+        country: userCountry,
         email: registerForm.email.trim(),
         password: registerForm.password,
         confirm_password: registerForm.password,
@@ -137,11 +179,14 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
 
       if (res?.data?.success) {
         const u = res.data.data || {
-          name: registerForm.name,
+          id: Date.now(),
+          name: fullName,
           email: registerForm.email,
           phone: registerForm.phone,
-          role: "Candidate",
+          country: userCountry,
+          role: "learner",
         };
+        persistToLearnersRegistry(u);
         onLoginSuccess(u);
         toast.success("Account created successfully! Welcome to Broadbeach Academy.");
         onClose();
@@ -154,11 +199,17 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
     }
 
     const newUser = {
-      name: registerForm.name,
+      id: Date.now(),
+      name: fullName,
+      first_name: registerForm.first_name,
+      second_name: registerForm.second_name,
+      last_name: registerForm.last_name,
+      country: userCountry,
       email: registerForm.email,
       phone: registerForm.phone,
-      role: "Candidate",
+      role: "learner",
     };
+    persistToLearnersRegistry(newUser);
     onLoginSuccess(newUser);
     toast.success("Account created successfully! Welcome to Broadbeach Academy.");
     onClose();
@@ -290,26 +341,93 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
             </form>
           ) : (
             /* ================= REGISTER FORM ================= */
-            <form onSubmit={handleRegister} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Full Name *
-                </label>
-                <div className="relative">
-                  <FaUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+            <form onSubmit={handleRegister} className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    First Name *
+                  </label>
+                  <div className="relative">
+                    <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="John"
+                      value={registerForm.first_name}
+                      onChange={(e) => setRegisterForm({ ...registerForm, first_name: e.target.value })}
+                      className="w-full pl-8 pr-2.5 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Second Name <span className="text-slate-400 font-normal">(opt)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Robert"
+                    value={registerForm.second_name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, second_name: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Last Name *
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="Full legal name for certificate"
-                    value={registerForm.name}
-                    onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
+                    placeholder="Doe"
+                    value={registerForm.last_name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, last_name: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
                   />
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Country Name *
+                  </label>
+                  <div className="relative">
+                    <FaGlobe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none" />
+                    <select
+                      value={registerForm.country}
+                      onChange={(e) => setRegisterForm({ ...registerForm, country: e.target.value })}
+                      className="w-full pl-8 pr-2 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none bg-white cursor-pointer"
+                    >
+                      {GLOBAL_COUNTRIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                    <input
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      value={registerForm.phone}
+                      onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
+                      className="w-full pl-8 pr-2.5 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
                   Email Address *
                 </label>
                 <div className="relative">
@@ -320,23 +438,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = "login", onLoginSuccess }) =>
                     placeholder="email@example.com"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <FaPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-                  <input
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={registerForm.phone}
-                    onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:ring-1 focus:ring-purple-100 outline-none"
                   />
                 </div>
               </div>

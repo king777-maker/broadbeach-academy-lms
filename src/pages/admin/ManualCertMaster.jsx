@@ -10,7 +10,10 @@ import {
 } from "../../api/adminApi";
 import { MANUAL_CERTIFICATES_REGISTRY } from "../../data/manualCertificatesData";
 import { downloadCertificatePDF } from "../../utils/certificateGenerator";
+import { GLOBAL_COUNTRIES, DEFAULT_COUNTRY } from "../../data/countriesData";
+import { exportToExcel, exportToCSV, printRegistryReport } from "../../utils/exportUtils";
 import PinVerificationModal from "../../components/Admin/PinVerificationModal";
+import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import {
   FaFileSignature,
@@ -34,7 +37,24 @@ import {
   FaStamp,
   FaChevronLeft,
   FaChevronRight,
+  FaGlobe,
+  FaUpload,
+  FaFileExcel,
+  FaFilePdf,
+  FaChevronDown,
 } from "react-icons/fa";
+
+export function getCertificateCountry(cert) {
+  if (!cert) return "India";
+  if (cert.country) return cert.country;
+  if (cert.notes) {
+    const match = String(cert.notes).match(/Country:\s*([A-Za-z\s]+?)(?:\.|$|,|\r|\n)/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return "India";
+}
 
 const SIGNATORIES = [
   "Dr. K. R. Sharma, Academic Director",
@@ -79,6 +99,7 @@ const ManualCertMaster = () => {
   const [createForm, setCreateForm] = useState({
     student_name: "",
     candidate_email: "",
+    country: DEFAULT_COUNTRY,
     course_name: POPULAR_COURSES[0],
     custom_course_name: "",
     certificate_number: "",
@@ -96,6 +117,7 @@ const ManualCertMaster = () => {
   const [editForm, setEditForm] = useState({
     student_name: "",
     candidate_email: "",
+    country: DEFAULT_COUNTRY,
     course_name: "",
     issue_date: "",
     completion_date: "",
@@ -104,6 +126,15 @@ const ManualCertMaster = () => {
     notes: "",
     correction_reason: "",
   });
+
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+
+  // Bulk Upload State
+  const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkPreview, setBulkPreview] = useState([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
 
   // History / Audit Modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -171,18 +202,30 @@ const ManualCertMaster = () => {
   // Reset page when search or status filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, pageSize]);
+  }, [search, statusFilter, countryFilter, pageSize]);
+
+  // Distinct countries for filter dropdown
+  const distinctCountries = useMemo(() => {
+    const set = new Set();
+    certificates.forEach((c) => {
+      const ctry = getCertificateCountry(c);
+      if (ctry) set.add(ctry);
+    });
+    return Array.from(set).sort();
+  }, [certificates]);
 
   // Client-side filtering
   const filteredCerts = useMemo(() => {
     return certificates.filter((c) => {
       const q = search.toLowerCase().trim();
+      const certCountry = getCertificateCountry(c);
       const matchQuery =
         !q ||
         String(c.certificate_number || "").toLowerCase().includes(q) ||
         String(c.student_name || "").toLowerCase().includes(q) ||
         String(c.course_name || "").toLowerCase().includes(q) ||
-        String(c.candidate_email || "").toLowerCase().includes(q);
+        String(c.candidate_email || "").toLowerCase().includes(q) ||
+        certCountry.toLowerCase().includes(q);
 
       const matchStatus =
         statusFilter === "all" ||
@@ -190,14 +233,292 @@ const ManualCertMaster = () => {
         (statusFilter === "revoked" && (c.status === "revoked" || c.verification_status === "Revoked")) ||
         String(c.status).toLowerCase() === statusFilter.toLowerCase();
 
-      return matchQuery && matchStatus;
+      const matchCountry =
+        countryFilter === "all" ||
+        certCountry.toLowerCase() === countryFilter.toLowerCase();
+
+      return matchQuery && matchStatus && matchCountry;
     });
-  }, [certificates, search, statusFilter]);
+  }, [certificates, search, statusFilter, countryFilter]);
 
   const totalPages = Math.ceil(filteredCerts.length / pageSize) || 1;
   const paginatedCerts = useMemo(() => {
     return filteredCerts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredCerts, currentPage, pageSize]);
+
+  // Export Handlers
+  const handleExportExcel = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCerts || filteredCerts.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const records = filteredCerts.map((c, i) => ({
+      "Sl No": i + 1,
+      "Certificate ID": c.certificate_number,
+      "Candidate Name": String(c.student_name || "").toUpperCase(),
+      "Email Address": c.candidate_email || "N/A",
+      "Country": getCertificateCountry(c),
+      "Course / Program": c.course_name,
+      "Training Type": c.training_type || "Offline Workshop",
+      "Issuing Organization": c.issuing_organization || "Broadbeach Academy",
+      "Authorized Signatory": c.authorized_signatory || "—",
+      "Issue Date": c.issue_date || "—",
+      "Completion Date": c.completion_date || "—",
+      "Status": (c.status === "revoked" || c.verification_status === "Revoked") ? "Revoked" : "Verified",
+      "Notes": c.notes || "",
+    }));
+    exportToExcel(records, `broadbeach_manual_certificates_${new Date().toISOString().split("T")[0]}.xlsx`, "Manual Certs");
+    toast.success(`Exported ${records.length} manual certificates to Excel.`);
+  };
+
+  const handleExportCSV = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCerts || filteredCerts.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const records = filteredCerts.map((c, i) => ({
+      "Sl No": i + 1,
+      "Certificate ID": c.certificate_number,
+      "Candidate Name": String(c.student_name || "").toUpperCase(),
+      "Email Address": c.candidate_email || "N/A",
+      "Country": getCertificateCountry(c),
+      "Course / Program": c.course_name,
+      "Training Type": c.training_type || "Offline Workshop",
+      "Issuing Organization": c.issuing_organization || "Broadbeach Academy",
+      "Authorized Signatory": c.authorized_signatory || "—",
+      "Issue Date": c.issue_date || "—",
+      "Completion Date": c.completion_date || "—",
+      "Status": (c.status === "revoked" || c.verification_status === "Revoked") ? "Revoked" : "Verified",
+      "Notes": c.notes || "",
+    }));
+    exportToCSV(records, `broadbeach_manual_certificates_${new Date().toISOString().split("T")[0]}.csv`);
+    toast.success(`Exported ${records.length} manual certificates to CSV.`);
+  };
+
+  const handleExportPrint = () => {
+    setExportDropdownOpen(false);
+    if (!filteredCerts || filteredCerts.length === 0) {
+      toast.error("No certificate records to export.");
+      return;
+    }
+    const headers = ["Cert ID", "Candidate Name", "Country", "Course / Program", "Training Type", "Issue Date", "Status"];
+    const rows = filteredCerts.map((c) => [
+      c.certificate_number,
+      String(c.student_name || "").toUpperCase(),
+      getCertificateCountry(c),
+      c.course_name,
+      c.training_type || "Offline Workshop",
+      c.issue_date || "—",
+      (c.status === "revoked" || c.verification_status === "Revoked") ? "Revoked" : "Verified",
+    ]);
+    printRegistryReport("Manual Certificates Master Registry", headers, rows);
+  };
+
+  // Bulk Upload Functions
+  const handleDownloadSampleTemplate = () => {
+    const templateData = [
+      {
+        "Candidate Full Name *": "RAJESH KUMAR",
+        "Candidate Email": "rajesh.kumar@example.com",
+        "Country *": "India",
+        "Course or Certification Title *": "Six Sigma Green Belt",
+        "Certificate ID (Optional)": "",
+        "Issue Date (YYYY-MM-DD) *": "2026-03-15",
+        "Completion Date (YYYY-MM-DD) *": "2026-03-10",
+        "Authorized Signatory": "Dr. K. R. Sharma, Academic Director",
+        "Training Type": "Offline Workshop",
+        "Batch Notes": "Batch #M-2026-BLR-01",
+      },
+      {
+        "Candidate Full Name *": "FATIMA AL-MANSOORI",
+        "Candidate Email": "fatima.m@example.ae",
+        "Country *": "United Arab Emirates",
+        "Course or Certification Title *": "Certified Supply Chain Professional",
+        "Certificate ID (Optional)": "",
+        "Issue Date (YYYY-MM-DD) *": "2026-03-18",
+        "Completion Date (YYYY-MM-DD) *": "2026-03-12",
+        "Authorized Signatory": "R. Venkatesh, Head of Certification",
+        "Training Type": "Executive Corporate Training",
+        "Batch Notes": "Dubai Executive Cohort",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Manual_Upload_Template");
+    XLSX.writeFile(wb, "Manual_Certificate_Bulk_Upload_Template.xlsx");
+    toast.success("Downloaded Manual Certificate Bulk Upload Template (.xlsx)");
+  };
+
+  const handleBulkFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBulkFile(file);
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rawJson = XLSX.utils.sheet_to_json(ws);
+
+        if (!rawJson || rawJson.length === 0) {
+          toast.error("Spreadsheet is empty. Please add candidate rows.");
+          setBulkPreview([]);
+          return;
+        }
+
+        const mapped = rawJson
+          .map((row, idx) => {
+            const student_name = String(
+              row["Candidate Full Name *"] || row["Candidate Full Name"] || row["student_name"] || row["Name"] || ""
+            ).trim().toUpperCase();
+
+            const candidate_email = String(
+              row["Candidate Email"] || row["candidate_email"] || row["Email"] || ""
+            ).trim();
+
+            const country = String(
+              row["Country *"] || row["Country"] || row["country"] || "India"
+            ).trim();
+
+            const course_name = String(
+              row["Course or Certification Title *"] || row["Course Title"] || row["course_name"] || row["Course"] || "Six Sigma Green Belt"
+            ).trim();
+
+            const certificate_number = String(
+              row["Certificate ID (Optional)"] || row["Certificate ID"] || row["certificate_number"] || ""
+            ).trim().toUpperCase();
+
+            const issue_date = String(
+              row["Issue Date (YYYY-MM-DD) *"] || row["Issue Date"] || row["issue_date"] || new Date().toISOString().split("T")[0]
+            ).trim();
+
+            const completion_date = String(
+              row["Completion Date (YYYY-MM-DD) *"] || row["Completion Date"] || row["completion_date"] || new Date().toISOString().split("T")[0]
+            ).trim();
+
+            const authorized_signatory = String(
+              row["Authorized Signatory"] || row["authorized_signatory"] || SIGNATORIES[0]
+            ).trim();
+
+            const training_type = String(
+              row["Training Type"] || row["training_type"] || TRAINING_TYPES[0]
+            ).trim();
+
+            const notes = String(
+              row["Batch Notes"] || row["Notes"] || row["notes"] || ""
+            ).trim();
+
+            return {
+              rowIdx: idx + 1,
+              student_name,
+              candidate_email,
+              country: country || "India",
+              course_name,
+              certificate_number,
+              issue_date,
+              completion_date,
+              issuing_organization: "Broadbeach Academy",
+              authorized_signatory,
+              training_type,
+              notes: notes ? `${notes} (Country: ${country})` : `Country: ${country}`,
+              status: "valid",
+              verification_status: "Valid",
+            };
+          })
+          .filter((r) => r.student_name);
+
+        if (mapped.length === 0) {
+          toast.error("No valid candidate records found in file.");
+        } else {
+          setBulkPreview(mapped);
+          toast.success(`Parsed ${mapped.length} candidate record(s) from spreadsheet.`);
+        }
+      } catch (err) {
+        toast.error("Failed to parse spreadsheet: " + err.message);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmBulkImport = async () => {
+    if (!bulkPreview || bulkPreview.length === 0) {
+      toast.error("No valid records to import.");
+      return;
+    }
+
+    try {
+      setBulkUploading(true);
+      let updatedList = [...certificates];
+      let importedCount = 0;
+
+      let seqNum = 1;
+      certificates.forEach((c) => {
+        const m = String(c.certificate_number).match(/BBA-M-\d{4}-(\d+)/);
+        if (m && m[1]) {
+          const n = parseInt(m[1], 10);
+          if (n >= seqNum) seqNum = n + 1;
+        }
+      });
+
+      const year = new Date().getFullYear();
+
+      bulkPreview.forEach((item) => {
+        let certNum = item.certificate_number;
+        if (!certNum) {
+          certNum = `BBA-M-${year}-${String(seqNum).padStart(4, "0")}`;
+          seqNum++;
+        }
+
+        const newRecord = {
+          ...item,
+          id: `mc-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          certificate_number: certNum,
+          created_at: new Date().toISOString(),
+          history: [
+            {
+              action: "Bulk Spreadsheet Import",
+              timestamp: new Date().toISOString(),
+              by: "Admin Bulk Importer",
+              details: `Imported via spreadsheet. Country: ${item.country}`,
+            },
+          ],
+        };
+
+        const existingIdx = updatedList.findIndex((x) => x.certificate_number === certNum);
+        if (existingIdx >= 0) {
+          updatedList[existingIdx] = newRecord;
+        } else {
+          updatedList.unshift(newRecord);
+        }
+        importedCount++;
+      });
+
+      try {
+        localStorage.setItem("broadbeach_manual_certificates", JSON.stringify(updatedList));
+        window.dispatchEvent(new Event("broadbeach_manual_certs_updated"));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+
+      setCertificates(updatedList);
+      toast.success(`Successfully imported ${importedCount} manual certificates into registry!`);
+      setBulkUploadModalOpen(false);
+      setBulkFile(null);
+      setBulkPreview([]);
+    } catch (err) {
+      toast.error("Bulk upload failed: " + err.message);
+    } finally {
+      setBulkUploading(false);
+    }
+  };
 
   // Copy ID
   const handleCopyId = (certNumber) => {
@@ -257,6 +578,7 @@ const ManualCertMaster = () => {
     const payload = {
       student_name: createForm.student_name.trim().toUpperCase(),
       candidate_email: createForm.candidate_email.trim(),
+      country: createForm.country || DEFAULT_COUNTRY,
       course_name: finalCourseName,
       certificate_number: autoIdMode ? "" : createForm.certificate_number.trim(),
       issue_date: createForm.issue_date,
@@ -264,7 +586,9 @@ const ManualCertMaster = () => {
       issuing_organization: createForm.issuing_organization,
       authorized_signatory: createForm.authorized_signatory,
       training_type: createForm.training_type,
-      notes: createForm.notes.trim(),
+      notes: createForm.notes.trim()
+        ? `${createForm.notes.trim()} (Country: ${createForm.country || DEFAULT_COUNTRY})`
+        : `Country: ${createForm.country || DEFAULT_COUNTRY}`,
     };
 
     setPendingPinAction({ type: "create", payload });
@@ -281,6 +605,7 @@ const ManualCertMaster = () => {
     setEditForm({
       student_name: cert.student_name,
       candidate_email: cert.candidate_email || "",
+      country: getCertificateCountry(cert),
       course_name: cert.course_name,
       issue_date: cert.issue_date,
       completion_date: cert.completion_date,
@@ -307,6 +632,7 @@ const ManualCertMaster = () => {
       payload: {
         ...editForm,
         student_name: editForm.student_name.trim().toUpperCase(),
+        country: editForm.country || DEFAULT_COUNTRY,
       },
     });
     setPinModalOpen(true);
@@ -427,17 +753,71 @@ const ManualCertMaster = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canManageCertificates && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                className="px-4 py-2.5 bg-[#F7C600] hover:bg-amber-300 text-[#131E4A] text-xs font-black rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+              >
+                <FaPlus />
+                <span>Create Manual Certificate</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBulkUploadModalOpen(true)}
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-[#131E4A] text-xs font-black rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+              >
+                <FaUpload className="text-amber-600" />
+                <span>Bulk Upload</span>
+              </button>
+            </>
+          )}
+
+          {/* Export Dropdown */}
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setCreateModalOpen(true)}
-              className="px-4 py-2.5 bg-[#F7C600] hover:bg-amber-300 text-[#131E4A] text-xs font-black rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+              onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+              className="px-4 py-2.5 bg-[#131E4A] hover:bg-[#183B73] text-white text-xs font-black rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
             >
-              <FaPlus />
-              <span>Create Manual Certificate</span>
+              <FaDownload size={11} />
+              <span>Export</span>
+              <FaChevronDown size={10} className={`transition ${exportDropdownOpen ? "rotate-180" : ""}`} />
             </button>
-          )}
+
+            {exportDropdownOpen && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFileExcel className="text-emerald-600" />
+                  <span>Export Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFileExcel className="text-blue-600" />
+                  <span>Export CSV (.csv)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPrint}
+                  className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <FaFilePdf className="text-rose-600" />
+                  <span>Print / Save as PDF</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={fetchCertificates}
@@ -457,12 +837,31 @@ const ManualCertMaster = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search candidate, course, or certificate ID..."
+            placeholder="Search candidate, country, course, or certificate ID..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#131E4A] focus:ring-1 focus:ring-[#131E4A] outline-hidden transition"
           />
         </div>
 
-        <div className="w-full sm:w-auto flex items-center gap-2">
+        <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+          {/* Country Filter */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <span className="font-semibold text-slate-400">Country:</span>
+            <select
+              aria-label="Filter manual certificates by country"
+              value={countryFilter}
+              onChange={(e) => setCountryFilter(e.target.value)}
+              className="bg-transparent font-bold text-[#131E4A] focus:outline-hidden cursor-pointer max-w-[130px] truncate"
+            >
+              <option value="all">All Countries</option>
+              {distinctCountries.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
           <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
             <span className="font-semibold text-slate-400">Status:</span>
             <select
@@ -487,6 +886,7 @@ const ManualCertMaster = () => {
               <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Certificate ID</th>
                 <th className="py-3 px-4">Candidate & Reference</th>
+                <th className="py-3 px-4">Country</th>
                 <th className="py-3 px-4">Course / Program</th>
                 <th className="py-3 px-4">Training Type</th>
                 <th className="py-3 px-4">Signatory & Org</th>
@@ -498,7 +898,7 @@ const ManualCertMaster = () => {
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading manual certificate records...</span>
                   </td>
@@ -539,6 +939,14 @@ const ManualCertMaster = () => {
                         <div className="text-[11px] text-slate-400 truncate max-w-[160px]">
                           {cert.candidate_email || "Offline Registration"}
                         </div>
+                      </td>
+
+                      {/* Country */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                          <FaGlobe className="text-amber-600 text-[10px]" />
+                          <span>{getCertificateCountry(cert)}</span>
+                        </span>
                       </td>
 
                       {/* Course */}
@@ -669,7 +1077,7 @@ const ManualCertMaster = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     No manual certificates found.
                   </td>
                 </tr>
@@ -791,8 +1199,8 @@ const ManualCertMaster = () => {
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
-              {/* Row 1: Candidate Name & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Row 1: Candidate Name, Country & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Candidate Full Name *
@@ -805,6 +1213,23 @@ const ManualCertMaster = () => {
                     placeholder="e.g. Vikramaditya Sharma"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#131E4A] outline-hidden transition"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Country *
+                  </label>
+                  <select
+                    value={createForm.country}
+                    onChange={(e) => setCreateForm({ ...createForm, country: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:bg-white focus:border-[#131E4A] outline-hidden transition cursor-pointer"
+                  >
+                    {GLOBAL_COUNTRIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -1038,17 +1463,36 @@ const ManualCertMaster = () => {
             </p>
 
             <form onSubmit={handleConfirmEdit} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Candidate Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.student_name}
-                  onChange={(e) => setEditForm({ ...editForm, student_name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#131E4A] outline-hidden"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Candidate Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.student_name}
+                    onChange={(e) => setEditForm({ ...editForm, student_name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:border-[#131E4A] outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Candidate Country
+                  </label>
+                  <select
+                    value={editForm.country}
+                    onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:bg-white focus:border-[#131E4A] outline-hidden cursor-pointer"
+                  >
+                    {GLOBAL_COUNTRIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -1244,6 +1688,149 @@ const ManualCertMaster = () => {
               >
                 {actionLoading ? "Revoking..." : "Confirm Revocation"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          BULK UPLOAD SPREADSHEET MODAL
+      ========================================================================= */}
+      {bulkUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-amber-300 p-6 sm:p-8 relative my-8 animate-in fade-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={() => {
+                setBulkUploadModalOpen(false);
+                setBulkFile(null);
+                setBulkPreview([]);
+              }}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 rounded-lg p-1 cursor-pointer"
+            >
+              <FaTimes size={16} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-xl">
+                <FaUpload />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-[#131E4A]">
+                  Bulk Upload Manual Certificates
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Import batches of offline participants directly from Excel (.xlsx) or CSV (.csv).
+                </p>
+              </div>
+            </div>
+
+            {/* Template Download & Format Info */}
+            <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl mb-5 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-[#131E4A] text-xs">
+                    Required Spreadsheet Columns:
+                  </h4>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    <code>Candidate Full Name *</code>, <code>Country *</code>, <code>Course or Certification Title *</code>, <code>Candidate Email</code>, <code>Certificate ID (Optional)</code>, <code>Issue Date (YYYY-MM-DD)</code>, <code>Completion Date (YYYY-MM-DD)</code>, <code>Training Type</code>, <code>Batch Notes</code>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleTemplate}
+                  className="px-3.5 py-2 bg-[#131E4A] hover:bg-[#183B73] text-white text-xs font-bold rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer self-start sm:self-center"
+                >
+                  <FaFileExcel className="text-emerald-400" />
+                  <span>Download Sample Excel</span>
+                </button>
+              </div>
+            </div>
+
+            {/* File Upload Box */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Select Excel or CSV Spreadsheet File:
+                </label>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleBulkFileChange}
+                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#131E4A] file:text-white hover:file:bg-[#183B73] file:cursor-pointer p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              {/* Preview Table */}
+              {bulkPreview.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#131E4A]">
+                      Preview (Showing first {Math.min(5, bulkPreview.length)} of {bulkPreview.length} records):
+                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      Ready to Import
+                    </span>
+                  </div>
+
+                  <div className="max-h-56 overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl">
+                    <table className="w-full text-left text-[11px] border-collapse">
+                      <thead className="bg-slate-50 font-bold text-slate-600 border-b border-slate-200">
+                        <tr>
+                          <th className="py-2 px-3">#</th>
+                          <th className="py-2 px-3">Candidate</th>
+                          <th className="py-2 px-3">Country</th>
+                          <th className="py-2 px-3">Course Title</th>
+                          <th className="py-2 px-3">Dates</th>
+                          <th className="py-2 px-3">Assigned ID</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {bulkPreview.slice(0, 5).map((r, i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="py-2 px-3 text-slate-400">{i + 1}</td>
+                            <td className="py-2 px-3 font-bold text-slate-900">{r.student_name}</td>
+                            <td className="py-2 px-3 text-slate-700">{r.country}</td>
+                            <td className="py-2 px-3 text-slate-700 truncate max-w-[180px]">{r.course_name}</td>
+                            <td className="py-2 px-3 text-slate-500 whitespace-nowrap">{r.issue_date}</td>
+                            <td className="py-2 px-3 font-mono text-amber-700 font-bold">
+                              {r.certificate_number || "Auto-Assign"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkUploadModalOpen(false);
+                    setBulkFile(null);
+                    setBulkPreview([]);
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBulkImport}
+                  disabled={bulkUploading || bulkPreview.length === 0}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <FaUpload size={12} />
+                  <span>
+                    {bulkUploading
+                      ? "Importing Records..."
+                      : `Confirm & Import ${bulkPreview.length} Records`}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
