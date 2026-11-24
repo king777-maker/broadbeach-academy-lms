@@ -674,28 +674,32 @@ export const globalSearch = async (q) => {
 
 export const getOnlineCertificates = async (params = {}) => {
   // 1. Primary: Fetch central server-side database records
-  try {
-    let res;
-    try {
-      res = await adminAxios.get("/online-certificates", { params });
-    } catch (e1) {
-      // Fallback to standalone GoDaddy script
-      res = await adminAxios.get("/get_admin_certificates.php", { params });
-    }
+  const candidateUrls = [
+    () => adminAxios.get("/online-certificates", { params }),
+    () => adminAxios.get("/get_admin_certificates.php", { params }),
+    () => axios.get("https://broadbeachonline.com/api/get_admin_certificates.php", { params, withCredentials: true }),
+    () => axios.get("https://broadbeachonline.com/get_admin_certificates.php", { params, withCredentials: true }),
+  ];
 
-    if (res?.data && (Array.isArray(res.data.data) || Array.isArray(res.data))) {
-      const records = Array.isArray(res.data.data) ? res.data.data : res.data;
-      return {
-        success: true,
-        data: records,
-        count: records.length,
-      };
+  for (const fetchCall of candidateUrls) {
+    try {
+      const res = await fetchCall();
+      if (res?.data && (Array.isArray(res.data.data) || Array.isArray(res.data))) {
+        const records = Array.isArray(res.data.data) ? res.data.data : res.data;
+        if (Array.isArray(records)) {
+          return {
+            success: true,
+            data: records,
+            count: records.length,
+          };
+        }
+      }
+    } catch (err) {
+      // Try next candidate URL
     }
-  } catch (err) {
-    console.warn("Central server fetch notice in getOnlineCertificates:", err?.message);
   }
 
-  // 2. Secondary fallback for offline / mock testing
+  // 2. Secondary fallback for offline / local testing
   const all = getEffectiveOnlineCertificates();
   let filtered = [...all];
   if (params.search) {

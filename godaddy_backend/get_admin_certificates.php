@@ -45,60 +45,43 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 // 2. Database Connection
 $db = null;
 
-// Search for database configuration files (supports your cPanel config/database.php)
-$possibleConfigFiles = [
-    __DIR__ . '/../config/database.php',
-    __DIR__ . '/config/database.php',
-    __DIR__ . '/../config/functions.php',
-    __DIR__ . '/../configuration/config.php',
-    __DIR__ . '/configuration/config.php',
-    __DIR__ . '/../configuration/Database.php',
-    __DIR__ . '/../source/config/Database.php',
-];
+// Primary: Use your exact GoDaddy MySQL credentials from config/database.php
+$dbHost = 'localhost';
+$dbUser = 'bb_user';
+$dbPass = 'Dw*$k{z#^vS1';
+$dbName = 'bb';
 
-foreach ($possibleConfigFiles as $cfg) {
-    if (file_exists($cfg)) {
-        require_once $cfg;
-        if (isset($conn) && $conn instanceof mysqli) { $db = $conn; break; }
-        if (isset($con) && $con instanceof mysqli) { $db = $con; break; }
-        if (isset($connection) && $connection instanceof mysqli) { $db = $connection; break; }
-        if (isset($db) && $db instanceof mysqli) { break; }
-        if (class_exists('Database')) {
-            try {
-                $dbObj = new Database();
-                if (method_exists($dbObj, 'connect')) {
-                    $db = $dbObj->connect();
-                    if ($db instanceof mysqli && !$db->connect_error) break;
-                }
-            } catch (Throwable $t) {}
-        }
-        if (defined('DB_HOST') && defined('DB_USER') && defined('DB_NAME')) {
-            try {
-                $db = new mysqli(DB_HOST, DB_USER, defined('DB_PASSWORD') ? DB_PASSWORD : '', DB_NAME, defined('DB_PORT') ? DB_PORT : 3306);
-                if ($db && !$db->connect_error) break;
-            } catch (Throwable $t) {}
-        }
-        $h = $host ?? $servername ?? $db_host ?? null;
-        $u = $user ?? $username ?? $db_user ?? null;
-        $p = $password ?? $db_password ?? '';
-        $n = $database ?? $dbname ?? $db_name ?? null;
-        if ($h && $u && $n) {
-            try {
-                $db = new mysqli($h, $u, $p, $n);
-                if ($db && !$db->connect_error) break;
-            } catch (Throwable $t) {}
-        }
-    }
+try {
+    $db = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
+} catch (Throwable $t) {
+    $db = null;
 }
 
-// Fallback to environment or default parameters if config not found
+// Fallback: Check config/database.php or existing database class
 if (!$db || $db->connect_error) {
-    $dbHost = getenv('DB_HOST') ?: 'localhost';
-    $dbUser = getenv('DB_USER') ?: 'root';
-    $dbPass = getenv('DB_PASSWORD') ?: '';
-    $dbName = getenv('DB_NAME') ?: 'broad_beach_online';
-    $dbPort = (int)(getenv('DB_PORT') ?: 3306);
-    $db = @new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
+    $possibleConfigFiles = [
+        __DIR__ . '/../config/database.php',
+        __DIR__ . '/config/database.php',
+        __DIR__ . '/../config/functions.php',
+        __DIR__ . '/../configuration/config.php',
+        __DIR__ . '/configuration/config.php',
+    ];
+
+    foreach ($possibleConfigFiles as $cfg) {
+        if (file_exists($cfg)) {
+            require_once $cfg;
+            if (class_exists('database')) {
+                try {
+                    $dbObj = new database();
+                    if (method_exists($dbObj, 'connect')) {
+                        $db = $dbObj->connect();
+                        if ($db instanceof mysqli && !$db->connect_error) break;
+                    }
+                } catch (Throwable $t) {}
+            }
+            if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) { $db = $conn; break; }
+        }
+    }
 }
 
 if ($db->connect_error) {
