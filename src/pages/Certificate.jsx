@@ -27,7 +27,7 @@ import { FREE_COURSE_DB_MAP } from "../constants/courseAvailability";
 import { getAuthoritativeCourseName } from "../data/freeCoursesData";
 import { resolveCourse } from "../data/coursesResolver";
 import { findManualCertificate } from "../data/manualCertificatesData";
-import { generateOfficialCertificateNumber } from "../utils/certificateGenerator";
+import { generateOfficialCertificateNumber, downloadCertificatePDF } from "../utils/certificateGenerator";
 
 
 const Certificate = () => {
@@ -619,122 +619,12 @@ const Certificate = () => {
 
         try {
             setDownloading(true);
-
-            // Create offscreen canvas matching native high-res template
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-
-            // Load template image
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = certificateTemplate;
+            await downloadCertificatePDF({
+                candidateName: registeredName || "STUDENT",
+                courseName: displayCourseName || "PROFESSIONAL CERTIFICATION",
+                certificateNumber: certificateNumber || "26BB03770",
+                issueDate: displayIssueDate,
             });
-
-            const width = img.naturalWidth || 1938;
-            const height = img.naturalHeight || 1364;
-            canvas.width = width;
-            canvas.height = height;
-
-            // 1. Draw base certificate template (contains navy header, logos, QR, signatures, date, pdu)
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Clean cover of the replaceable regions (pure white)
-            ctx.fillStyle = "#ffffff";
-            // 1. Candidate Name region
-            ctx.fillRect(width * 0.065, height * 0.38, width * 0.55, height * 0.08);
-            // 2. Course Name region
-            ctx.fillRect(width * 0.065, height * 0.52, width * 0.60, height * 0.12);
-            // 3. Certificate ID region
-            ctx.fillRect(width * 0.84, height * 0.64, width * 0.15, height * 0.045);
-            // 4. Date of Issue region
-            ctx.fillRect(width * 0.84, height * 0.68, width * 0.15, height * 0.045);
-
-            // Helper for text fitting
-            const drawFittedText = (text, startX, startY, maxWidth, initialSize, fontName, color, weight) => {
-                let size = initialSize;
-                ctx.fillStyle = color;
-                ctx.textBaseline = "top";
-
-                while (size > 14) {
-                    ctx.font = `${weight} ${size}px ${fontName}`;
-                    const measured = ctx.measureText(text).width;
-                    if (measured <= maxWidth) break;
-                    size -= 2;
-                }
-                ctx.fillText(text, startX, startY);
-            };
-
-            // 1. Candidate Name (uppercase, bold #0d1084)
-            const finalCandidateName = (registeredName || "STUDENT").toUpperCase().trim();
-            drawFittedText(
-                finalCandidateName,
-                width * 0.0702,
-                height * 0.395,
-                width * 0.54,
-                52,
-                "Arial, sans-serif",
-                "#0d1084",
-                "bold"
-            );
-
-            // 2. Course Name (uppercase, Impact/Arial bold #000000)
-            const finalCourseName = (displayCourseName || "PROFESSIONAL CERTIFICATION").toUpperCase().trim();
-            drawFittedText(
-                finalCourseName,
-                width * 0.0702,
-                height * 0.536,
-                width * 0.58,
-                72,
-                "Impact, 'Arial Black', Arial, sans-serif",
-                "#000000",
-                "900"
-            );
-
-            // 3. Certificate ID (uppercase bold #000000)
-            const finalCertId = (certificateNumber || "BOA10116").toUpperCase().trim();
-            drawFittedText(
-                finalCertId,
-                width * 0.8462,
-                height * 0.652,
-                width * 0.14,
-                30,
-                "Arial, sans-serif",
-                "#000000",
-                "bold"
-            );
-
-            // 4. Date of Issue (uppercase bold #000000)
-            const finalIssueDate = (displayIssueDate || "09 OCT 2026").toUpperCase().trim();
-            drawFittedText(
-                finalIssueDate,
-                width * 0.8462,
-                height * 0.690,
-                width * 0.14,
-                30,
-                "Arial, sans-serif",
-                "#000000",
-                "bold"
-            );
-
-            // Generate high-resolution PDF
-            const imgData = canvas.toDataURL("image/png", 1.0);
-            const pdf = new jsPDF({
-                orientation: "landscape",
-                unit: "mm",
-                format: "a4",
-                compress: true,
-            });
-
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            pdf.addImage(imgData, "PNG", 0, 0, pageWidth, pageHeight, undefined, "FAST");
-
-            const safeCertId = finalCertId.replace(/[^a-z0-9-_]+/gi, "-");
-            pdf.save(`Broadbeach-Certificate-${safeCertId || "Credential"}.pdf`);
         } catch (err) {
             console.error("Certificate Download Error:", err);
             alert("Unable to download certificate. Please try again.");
