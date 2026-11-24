@@ -7,10 +7,6 @@ import axios from "axios";
  * - If running in browser on a Vercel deployment (*.vercel.app), uses "/api" to route via Vercel Edge Proxy
  */
 export const getApiBaseUrl = () => {
-    // 1. Explicit environment variable takes highest precedence
-    const rawEnv = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
-    if (rawEnv) return rawEnv;
-
     if (typeof window !== "undefined") {
         // Local development: use Vite dev server middleware (/api)
         if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -22,11 +18,14 @@ export const getApiBaseUrl = () => {
         }
     }
 
+    // Explicit environment variable takes highest precedence on custom hosts
+    const rawEnv = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    if (rawEnv) return rawEnv;
+
     if (import.meta.env.DEV) {
         return "/api";
     }
 
-    // Testing clone safe fallback: route via proxy to prevent accidental production DB writes
     return "/api";
 };
 

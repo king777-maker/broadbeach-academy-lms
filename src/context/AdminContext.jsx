@@ -22,8 +22,9 @@ export const AdminProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(true);
 
-  const saveAdminLocally = useCallback((adminData) => {
-    if (adminData) {
+  const saveAdminLocally = useCallback((rawAdminData) => {
+    const adminData = rawAdminData?.user || rawAdminData;
+    if (adminData && (adminData.id || adminData.email || adminData.role)) {
       const email = String(adminData.email || "").toLowerCase().trim();
       const rawRole = String(adminData.role || "").toLowerCase().trim();
       const normalizedRole = (email === "admin@broadbeachlearning.com" || rawRole === "super_admin")

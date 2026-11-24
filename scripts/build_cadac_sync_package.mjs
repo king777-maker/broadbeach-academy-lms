@@ -51,15 +51,32 @@ const syncScriptContent = `<?php
 
 header('Content-Type: application/json; charset=utf-8');
 
-$EXPECTED_TOKEN = 'BroadbeachSync2026_SecureAdminDeploy';
-$receivedToken = $_GET['token'] ?? $_POST['token'] ?? '';
+// Retrieve secure deployment authorization token from server environment or private config
+$EXPECTED_TOKEN = getenv('BROADBEACH_DEPLOY_TOKEN') ?: (defined('BROADBEACH_DEPLOY_TOKEN') ? BROADBEACH_DEPLOY_TOKEN : '');
 
-if (!hash_equals($EXPECTED_TOKEN, $receivedToken)) {
+// Secondary fallback: private external configuration file outside document root
+if (!$EXPECTED_TOKEN && file_exists(dirname(__DIR__) . '/deploy_token.secret')) {
+    $EXPECTED_TOKEN = trim((string)@file_get_contents(dirname(__DIR__) . '/deploy_token.secret'));
+}
+
+// Enforce minimum entropy requirements (minimum 32 characters)
+if (!$EXPECTED_TOKEN || strlen($EXPECTED_TOKEN) < 32) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Deployment configuration error: administrative deployment token must be configured with at least 32 characters of entropy.'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Prohibit GET parameter token transmission (prevents token leakage in server access logs and browser history)
+$receivedToken = $_SERVER['HTTP_X_BROADBEACH_DEPLOY_TOKEN'] ?? $_POST['token'] ?? '';
+
+if (!is_string($receivedToken) || $receivedToken === '' || !hash_equals($EXPECTED_TOKEN, $receivedToken)) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
-        'error' => 'Forbidden: Invalid or missing administrative deployment token.',
-        'hint' => 'Pass ?token=BroadbeachSync2026_SecureAdminDeploy to authorize execution.'
+        'error' => 'Access Denied: Invalid or missing administrative deployment token.'
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }

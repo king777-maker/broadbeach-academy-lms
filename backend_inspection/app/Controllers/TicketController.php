@@ -318,33 +318,70 @@ class TicketController
 
     /**
      * GET /api/tickets/{id}
-     * Fetches a single ticket with its public message history
+     * Fetches a single ticket with its public message history with strict tenant ownership validation
      */
     public function getTicket(string $ticketId): void
     {
         if (!$this->db) {
             $this->jsonResponse(false, "Database connection unavailable.", null, 503);
+            return;
         }
 
-        $idEsc = $this->db->real_escape_string($ticketId);
-        $res = $this->db->query("SELECT * FROM support_tickets WHERE id = '$idEsc' LIMIT 1");
-        if (!$res || $res->num_rows === 0) {
+        $auth = $this->getLearnerIdentity();
+        $isAdmin = isset($_SESSION["admin"]) && is_array($_SESSION["admin"]) && !empty($_SESSION["admin"]["id"]);
+
+        // Enforce active authentication
+        if (!$auth["authenticated"] && !$isAdmin) {
+            $this->jsonResponse(false, "Authentication required to access support ticket.", null, 401);
+            return;
+        }
+
+        // Parameterized ticket retrieval
+        $stmt = $this->db->prepare("SELECT * FROM support_tickets WHERE id = ? LIMIT 1");
+        if (!$stmt) {
+            $this->jsonResponse(false, "Internal database error preparing query.", null, 500);
+            return;
+        }
+        $stmt->bind_param("s", $ticketId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $ticket = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+
+        if (!$ticket) {
             $this->jsonResponse(false, "Ticket #{$ticketId} not found.", null, 404);
+            return;
         }
 
-        $ticket = $res->fetch_assoc();
+        // Cross-Tenant Authorization Enforcement (BOLA/IDOR Protection)
+        $callerEmail = strtolower(trim($auth["email"] ?? ""));
+        $ticketOwnerEmail = strtolower(trim($ticket["requester_email"] ?? ""));
+
+        if (!$isAdmin && ($callerEmail === "" || $callerEmail !== $ticketOwnerEmail)) {
+            $this->jsonResponse(false, "Access denied: You do not have permission to view ticket #{$ticketId}.", null, 403);
+            return;
+        }
+
+        // Parameterized message history query excluding internal staff notes
         $messages = [];
-        $mRes = $this->db->query("
+        $mStmt = $this->db->prepare("
             SELECT id, ticket_id, sender_type, sender_name, sender_email, message, created_at 
             FROM ticket_messages 
-            WHERE ticket_id = '$idEsc' AND is_internal = 0 
+            WHERE ticket_id = ? AND is_internal = 0 
             ORDER BY created_at ASC
         ");
-        if ($mRes) {
-            while ($mRow = $mRes->fetch_assoc()) {
-                $messages[] = $mRow;
+        if ($mStmt) {
+            $mStmt->bind_param("s", $ticketId);
+            $mStmt->execute();
+            $mRes = $mStmt->get_result();
+            if ($mRes) {
+                while ($mRow = $mRes->fetch_assoc()) {
+                    $messages[] = $mRow;
+                }
             }
+            $mStmt->close();
         }
+
         $ticket["messages"] = $messages;
         $ticket["replies"] = $messages;
 
@@ -353,53 +390,96 @@ class TicketController
 
     /**
      * POST /api/tickets/{id}/reply
-     * Allows learner to submit a follow-up reply
+     * Allows learner or administrator to submit a follow-up reply with strict ownership verification
      */
     public function reply(string $ticketId): void
     {
         if ($_SERVER["REQUEST_METHOD"] !== "POST") {
             $this->jsonResponse(false, "Method not allowed. Only POST accepted.", null, 405);
+            return;
         }
-
-        $input = $this->getInput();
-        $auth = $this->getLearnerIdentity();
-
-        $message = trim($input["message"] ?? $input["reply"] ?? "");
-        if (empty($message)) {
-            $this->jsonResponse(false, "Reply message cannot be empty.", null, 422);
-        }
-
-        $senderName = trim($input["sender_name"] ?? $input["name"] ?? $auth["name"] ?? "Learner");
-        $senderEmail = trim($input["sender_email"] ?? $input["email"] ?? $auth["email"] ?? "learner@broadbeach.in");
 
         if (!$this->db) {
             $this->jsonResponse(false, "Database connection unavailable.", null, 503);
+            return;
         }
 
-        $idEsc = $this->db->real_escape_string($ticketId);
-        $check = $this->db->query("SELECT id, status FROM support_tickets WHERE id = '$idEsc' LIMIT 1");
-        if (!$check || $check->num_rows === 0) {
+        $auth = $this->getLearnerIdentity();
+        $isAdmin = isset($_SESSION["admin"]) && is_array($_SESSION["admin"]) && !empty($_SESSION["admin"]["id"]);
+
+        // Enforce active authentication
+        if (!$auth["authenticated"] && !$isAdmin) {
+            $this->jsonResponse(false, "Authentication required to reply to support tickets.", null, 401);
+            return;
+        }
+
+        $input = $this->getInput();
+        $message = trim($input["message"] ?? $input["reply"] ?? "");
+        if ($message === "") {
+            $this->jsonResponse(false, "Reply message cannot be empty.", null, 422);
+            return;
+        }
+
+        // Parameterized ticket lookup
+        $stmt = $this->db->prepare("SELECT id, requester_name, requester_email, status FROM support_tickets WHERE id = ? LIMIT 1");
+        if (!$stmt) {
+            $this->jsonResponse(false, "Internal database error preparing query.", null, 500);
+            return;
+        }
+        $stmt->bind_param("s", $ticketId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $ticket = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+
+        if (!$ticket) {
             $this->jsonResponse(false, "Ticket #{$ticketId} not found.", null, 404);
+            return;
+        }
+
+        // Cross-Tenant Authorization Enforcement (BOLA/IDOR Protection)
+        $callerEmail = strtolower(trim($auth["email"] ?? ""));
+        $ticketOwnerEmail = strtolower(trim($ticket["requester_email"] ?? ""));
+
+        if (!$isAdmin && ($callerEmail === "" || $callerEmail !== $ticketOwnerEmail)) {
+            $this->jsonResponse(false, "Access denied: You do not have permission to reply to ticket #{$ticketId}.", null, 403);
+            return;
+        }
+
+        // Enforce verified identity (prevent spoofing sender_name or sender_email via request body)
+        if ($isAdmin) {
+            $senderType = "agent";
+            $senderName = trim($_SESSION["admin"]["name"] ?? "Support Agent");
+            $senderEmail = trim($_SESSION["admin"]["email"] ?? "admin@broadbeachlearning.com");
+        } else {
+            $senderType = "requester";
+            $senderName = trim($auth["name"] ?: $ticket["requester_name"]);
+            $senderEmail = trim($auth["email"]);
         }
 
         $mStmt = $this->db->prepare("
             INSERT INTO ticket_messages (ticket_id, sender_type, sender_name, sender_email, message, is_internal, created_at) 
-            VALUES (?, 'requester', ?, ?, ?, 0, NOW())
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
         ");
         if ($mStmt) {
-            $mStmt->bind_param("ssss", $ticketId, $senderName, $senderEmail, $message);
+            $mStmt->bind_param("sssss", $ticketId, $senderType, $senderName, $senderEmail, $message);
             $mStmt->execute();
             $mStmt->close();
         }
 
-        // Update ticket status to 'Open' if resolved or new
-        $this->db->query("UPDATE support_tickets SET status = 'Open', updated_at = NOW() WHERE id = '$idEsc'");
+        // Update ticket status to 'Open' if currently resolved or new
+        $uStmt = $this->db->prepare("UPDATE support_tickets SET status = 'Open', updated_at = NOW() WHERE id = ?");
+        if ($uStmt) {
+            $uStmt->bind_param("s", $ticketId);
+            $uStmt->execute();
+            $uStmt->close();
+        }
 
         $this->jsonResponse(true, "Reply posted successfully.", [
-            "ticket_id" => $ticketId,
+            "ticket_id"   => $ticketId,
             "sender_name" => $senderName,
-            "message" => $message,
-            "created_at" => date("Y-m-d H:i:s")
+            "message"     => $message,
+            "created_at"  => date("Y-m-d H:i:s")
         ], 200);
     }
 
