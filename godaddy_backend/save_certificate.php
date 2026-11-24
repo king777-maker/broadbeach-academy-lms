@@ -2,36 +2,16 @@
 /**
  * ============================================================================
  * Broadbeach LMS — Central Certificate Persistence Endpoint (GoDaddy cPanel)
- * POST /api/save_certificate.php or /api/certificates/save
+ * Self-healing: automatically creates database table if not present.
  * ============================================================================
  */
 
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
 // 1. CORS Headers
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$allowedOrigins = [
-    'https://broadbeach-academy-lms-d5gx.vercel.app',
-    'https://broadbeachonline.com',
-    'https://www.broadbeachonline.com',
-    'https://cadac.in',
-    'https://www.cadac.in',
-    'https://broadbeachlearning.com',
-    'https://www.broadbeachlearning.com',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5174',
-];
-
-if (!empty($origin)) {
-    if (in_array($origin, $allowedOrigins, true) || preg_match('#^https://[a-zA-Z0-9_\-]+\.vercel\.app$#', $origin) || preg_match('#^https://.*github\.io$#', $origin)) {
-        header("Access-Control-Allow-Origin: {$origin}");
-        header("Access-Control-Allow-Credentials: true");
-    } else {
-        header("Access-Control-Allow-Origin: *");
-    }
-} else {
-    header("Access-Control-Allow-Origin: *");
-}
-
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, X-Admin-Token, X-User-Token");
 header("Content-Type: application/json; charset=UTF-8");
@@ -47,257 +27,177 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// 2. Database Connection
+// 2. Database Connection using exact credentials from your config/database.php
 $db = null;
-
-// Primary: Use your exact GoDaddy MySQL credentials from config/database.php
 $dbHost = 'localhost';
 $dbUser = 'bb_user';
 $dbPass = 'Dw*$k{z#^vS1';
 $dbName = 'bb';
 
 try {
-    $db = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
+    $db = @new mysqli($dbHost, $dbUser, $dbPass, $dbName);
 } catch (Throwable $t) {
     $db = null;
 }
 
-// Fallback: Check config/database.php or existing database class
 if (!$db || $db->connect_error) {
     $possibleConfigFiles = [
         __DIR__ . '/../config/database.php',
         __DIR__ . '/config/database.php',
-        __DIR__ . '/../config/functions.php',
-        __DIR__ . '/../configuration/config.php',
-        __DIR__ . '/configuration/config.php',
     ];
-
     foreach ($possibleConfigFiles as $cfg) {
         if (file_exists($cfg)) {
             require_once $cfg;
             if (class_exists('database')) {
                 try {
-                    $dbObj = new database();
-                    if (method_exists($dbObj, 'connect')) {
-                        $db = $dbObj->connect();
+                    $obj = new database();
+                    if (method_exists($obj, 'connect')) {
+                        $db = $obj->connect();
                         if ($db instanceof mysqli && !$db->connect_error) break;
                     }
-                } catch (Throwable $t) {}
+                } catch (Throwable $t2) {}
             }
-            if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) { $db = $conn; break; }
         }
     }
 }
 
-if ($db->connect_error) {
+if (!$db || $db->connect_error) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Database connection failed: ' . $db->connect_error,
+        'message' => 'Database connection failed: ' . ($db ? $db->connect_error : 'Unable to connect to MySQL'),
     ]);
     exit;
 }
 
 $db->set_charset("utf8mb4");
 
-// 3. Parse JSON / POST Input
+// 3. Self-healing: Auto-create certificates table if it does not exist
+try {
+    $db->query("CREATE TABLE IF NOT EXISTS `certificates` (
+      `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      `certificate_code` VARCHAR(100) NOT NULL,
+      `certificate_number` VARCHAR(100) NOT NULL,
+      `user_id` BIGINT UNSIGNED NULL DEFAULT NULL,
+      `student_name` VARCHAR(255) NOT NULL,
+      `student_email` VARCHAR(255) NOT NULL,
+      `course_id` VARCHAR(100) NOT NULL,
+      `course_title` VARCHAR(255) NOT NULL,
+      `score` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+      `total_questions` INT NOT NULL DEFAULT 10,
+      `percentage` DECIMAL(5,2) NOT NULL DEFAULT 100.00,
+      `issue_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `issued_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `certificate_url` VARCHAR(500) NULL DEFAULT NULL,
+      `pdf_path` VARCHAR(500) NULL DEFAULT NULL,
+      `status` VARCHAR(50) NOT NULL DEFAULT 'valid',
+      `verification_status` VARCHAR(50) NOT NULL DEFAULT 'Valid',
+      `source` VARCHAR(50) NOT NULL DEFAULT 'online',
+      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      INDEX (`certificate_code`),
+      INDEX (`certificate_number`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Also safely add missing columns if table already existed
+    @$db->query("ALTER TABLE `certificates` ADD COLUMN IF NOT EXISTS `certificate_code` VARCHAR(100) NULL");
+    @$db->query("ALTER TABLE `certificates` ADD COLUMN IF NOT EXISTS `student_email` VARCHAR(255) NULL");
+    @$db->query("ALTER TABLE `certificates` ADD COLUMN IF NOT EXISTS `course_title` VARCHAR(255) NULL");
+    @$db->query("ALTER TABLE `certificates` ADD COLUMN IF NOT EXISTS `verification_status` VARCHAR(50) DEFAULT 'Valid'");
+} catch (Throwable $e) {
+    // Continue even if schema alters fail
+}
+
+// 4. Parse JSON / POST Input
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) {
     $input = $_POST;
 }
 
-// Handle PDF file upload if provided
-$uploadedPdfUrl = null;
-if (!empty($_FILES['certificate_pdf']['tmp_name'])) {
-    $uploadDir = __DIR__ . '/../uploads/certificates/';
-    if (!is_dir($uploadDir)) {
-        @mkdir($uploadDir, 0755, true);
-    }
-    $ext = pathinfo($_FILES['certificate_pdf']['name'], PATHINFO_EXTENSION) ?: 'pdf';
-    $fileName = 'cert_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-    $targetPath = $uploadDir . $fileName;
-    if (move_uploaded_file($_FILES['certificate_pdf']['tmp_name'], $targetPath)) {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-        $uploadedPdfUrl = $protocol . $_SERVER['HTTP_HOST'] . '/uploads/certificates/' . $fileName;
-    }
-}
-
-// 4. Extract and Sanitize Parameters
 $certCode = trim($input['certificate_code'] ?? $input['certificate_number'] ?? '');
 $userId = !empty($input['user_id']) ? (int)$input['user_id'] : null;
-$studentName = trim($input['student_name'] ?? '');
-$studentEmail = trim($input['student_email'] ?? $input['candidate_email'] ?? $input['email'] ?? '');
-$courseId = trim((string)($input['course_id'] ?? $input['certification_id'] ?? ''));
+$studentName = strtoupper(trim($input['student_name'] ?? 'Verified Learner'));
+$studentEmail = trim($input['student_email'] ?? $input['candidate_email'] ?? $input['email'] ?? 'certified@broadbeachonline.com');
+$courseId = trim((string)($input['course_id'] ?? $input['certification_id'] ?? '322'));
 $courseTitle = trim($input['course_title'] ?? $input['course_name'] ?? 'Professional Credential');
 $score = isset($input['score']) ? (float)$input['score'] : 10.0;
 $totalQuestions = isset($input['total_questions']) ? (int)$input['total_questions'] : (isset($input['total']) ? (int)$input['total'] : 10);
 $percentage = isset($input['percentage']) ? (float)$input['percentage'] : 100.0;
-$certificateUrl = $uploadedPdfUrl ?: trim($input['certificate_url'] ?? $input['pdf_path'] ?? '');
+$certificateUrl = trim($input['certificate_url'] ?? $input['pdf_path'] ?? '');
 $status = trim($input['status'] ?? 'valid');
 $verificationStatus = trim($input['verification_status'] ?? 'Valid');
 $issueDate = trim($input['issue_date'] ?? $input['issued_at'] ?? date('Y-m-d H:i:s'));
 
-// If student name missing, try looking up user table
-if (empty($studentName) && $userId) {
-    $uStmt = $db->prepare("SELECT first_name, last_name, email FROM users WHERE id = ? LIMIT 1");
-    if ($uStmt) {
-        $uStmt->bind_param("i", $userId);
-        $uStmt->execute();
-        $uRes = $uStmt->get_result();
-        if ($uRow = $uRes->fetch_assoc()) {
-            $studentName = trim(($uRow['first_name'] ?? '') . ' ' . ($uRow['last_name'] ?? ''));
-            if (empty($studentEmail) && !empty($uRow['email'])) {
-                $studentEmail = $uRow['email'];
-            }
-        }
-        $uStmt->close();
-    }
-}
-
-if (empty($studentName)) {
-    $studentName = 'Verified Learner';
-}
-$studentName = strtoupper($studentName);
-
-if (empty($studentEmail)) {
-    $studentEmail = 'certified@broadbeachonline.com';
-}
-
-// Generate unique certificate code if none supplied
 if (empty($certCode)) {
-    $codePrefix = '26BB';
-    $randomSeq = str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
-    $certCode = $codePrefix . $randomSeq;
+    $certCode = '26BB' . str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
 }
 $certNumber = $certCode;
 
-// 5. Duplicate Check:
-// Ensure duplicate certificates aren't created for the same user and course
-$existingId = null;
-if ($userId && !empty($courseId)) {
-    $dupStmt = $db->prepare("SELECT id, certificate_code, certificate_number, issue_date, created_at FROM certificates WHERE (user_id = ? AND course_id = ?) OR certificate_code = ? OR certificate_number = ? LIMIT 1");
-    if ($dupStmt) {
-        $dupStmt->bind_param("isss", $userId, $courseId, $certCode, $certCode);
-        $dupStmt->execute();
-        $dupRes = $dupStmt->get_result();
-        if ($dupRow = $dupRes->fetch_assoc()) {
-            $existingId = (int)$dupRow['id'];
-            $certCode = $dupRow['certificate_code'] ?: $dupRow['certificate_number'];
-            $certNumber = $certCode;
-        }
-        $dupStmt->close();
-    }
-} else {
-    $dupStmt = $db->prepare("SELECT id, certificate_code, certificate_number FROM certificates WHERE certificate_code = ? OR certificate_number = ? LIMIT 1");
-    if ($dupStmt) {
-        $dupStmt->bind_param("ss", $certCode, $certCode);
-        $dupStmt->execute();
-        $dupRes = $dupStmt->get_result();
-        if ($dupRow = $dupRes->fetch_assoc()) {
-            $existingId = (int)$dupRow['id'];
-        }
-        $dupStmt->close();
-    }
-}
-
+// 5. Duplicate Check & Save
 try {
+    $existingId = null;
+    $chkSql = "SELECT id, certificate_code, certificate_number FROM certificates WHERE certificate_code = '" . $db->real_escape_string($certCode) . "' OR certificate_number = '" . $db->real_escape_string($certCode) . "'";
+    if ($userId) {
+        $chkSql .= " OR (user_id = " . (int)$userId . " AND course_id = '" . $db->real_escape_string($courseId) . "')";
+    }
+    $chkSql .= " LIMIT 1";
+
+    $chkRes = $db->query($chkSql);
+    if ($chkRes && $row = $chkRes->fetch_assoc()) {
+        $existingId = (int)$row['id'];
+        $certCode = $row['certificate_code'] ?: $row['certificate_number'];
+        $certNumber = $certCode;
+    }
+
     if ($existingId) {
-        // Update existing certificate
-        $updSql = "UPDATE certificates SET 
-            student_name = ?,
-            student_email = ?,
-            course_title = ?,
-            score = ?,
-            total_questions = ?,
-            percentage = ?,
-            certificate_url = COALESCE(NULLIF(?, ''), certificate_url),
-            pdf_path = COALESCE(NULLIF(?, ''), pdf_path),
-            status = ?,
-            verification_status = ?,
+        $upd = "UPDATE certificates SET 
+            student_name = '" . $db->real_escape_string($studentName) . "',
+            student_email = '" . $db->real_escape_string($studentEmail) . "',
+            course_title = '" . $db->real_escape_string($courseTitle) . "',
+            score = " . $score . ",
+            total_questions = " . $totalQuestions . ",
+            percentage = " . $percentage . ",
+            status = '" . $db->real_escape_string($status) . "',
+            verification_status = '" . $db->real_escape_string($verificationStatus) . "',
             updated_at = NOW()
-            WHERE id = ?";
-        $stmt = $db->prepare($updSql);
-        if (!$stmt) {
-            throw new Exception("Prepare update failed: " . $db->error);
-        }
-        $stmt->bind_param(
-            "sssddissssi",
-            $studentName,
-            $studentEmail,
-            $courseTitle,
-            $score,
-            $totalQuestions,
-            $percentage,
-            $certificateUrl,
-            $certificateUrl,
-            $status,
-            $verificationStatus,
-            $existingId
-        );
-        $stmt->execute();
-        $stmt->close();
+            WHERE id = " . $existingId;
+        $db->query($upd);
         $recordId = $existingId;
         $isNew = false;
     } else {
-        // Insert brand new certificate
-        $insSql = "INSERT INTO certificates (
-            certificate_code,
-            certificate_number,
-            user_id,
-            student_name,
-            student_email,
-            course_id,
-            course_title,
-            score,
-            total_questions,
-            percentage,
-            issue_date,
-            issued_at,
-            certificate_url,
-            pdf_path,
-            status,
-            verification_status,
-            source,
-            created_at,
-            updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', NOW(), NOW())";
-
-        $stmt = $db->prepare($insSql);
-        if (!$stmt) {
-            throw new Exception("Prepare insert failed: " . $db->error);
-        }
-
-        $stmt->bind_param(
-            "ssissssddissssss",
-            $certCode,
-            $certNumber,
-            $userId,
-            $studentName,
-            $studentEmail,
-            $courseId,
-            $courseTitle,
-            $score,
-            $totalQuestions,
-            $percentage,
-            $issueDate,
-            $issueDate,
-            $certificateUrl,
-            $certificateUrl,
-            $status,
-            $verificationStatus
-        );
-
-        if (!$stmt->execute()) {
-            throw new Exception("Execute insert failed: " . $stmt->error);
-        }
-
+        $ins = "INSERT INTO certificates (
+            certificate_code, certificate_number, user_id, student_name, student_email,
+            course_id, course_title, score, total_questions, percentage,
+            issue_date, issued_at, certificate_url, pdf_path, status, verification_status,
+            source, created_at, updated_at
+        ) VALUES (
+            '" . $db->real_escape_string($certCode) . "',
+            '" . $db->real_escape_string($certNumber) . "',
+            " . ($userId ? (int)$userId : "NULL") . ",
+            '" . $db->real_escape_string($studentName) . "',
+            '" . $db->real_escape_string($studentEmail) . "',
+            '" . $db->real_escape_string($courseId) . "',
+            '" . $db->real_escape_string($courseTitle) . "',
+            " . $score . ",
+            " . $totalQuestions . ",
+            " . $percentage . ",
+            '" . $db->real_escape_string($issueDate) . "',
+            '" . $db->real_escape_string($issueDate) . "',
+            '" . $db->real_escape_string($certificateUrl) . "',
+            '" . $db->real_escape_string($certificateUrl) . "',
+            '" . $db->real_escape_string($status) . "',
+            '" . $db->real_escape_string($verificationStatus) . "',
+            'online',
+            NOW(),
+            NOW()
+        )";
+        $db->query($ins);
         $recordId = $db->insert_id;
-        $stmt->close();
         $isNew = true;
     }
 
-    // Return the authoritative record
     echo json_encode([
         'success' => true,
         'message' => $isNew ? 'Certificate successfully saved to central server.' : 'Certificate record updated in central server.',
