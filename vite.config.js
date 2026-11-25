@@ -567,18 +567,14 @@ export default defineConfig({
     open: false,
     proxy: {
       "/api": {
-        target: "https://cadac.in",
+        target: "https://broadbeachonline.com",
         changeOrigin: true,
         secure: false,
-        rewrite: (path) =>
-          path.replace(/^\/api/, "/broadbeachlearning.com/broadbeach-backend/api"),
       },
       "/backend": {
-        target: "https://cadac.in",
+        target: "https://broadbeachonline.com",
         changeOrigin: true,
         secure: false,
-        rewrite: (path) =>
-          path.replace(/^\/backend/, "/broadbeachlearning.com/broadbeach-backend"),
       },
     },
   },

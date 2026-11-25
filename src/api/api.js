@@ -16,15 +16,15 @@ export const getApiBaseUrl = () => {
         if (window.location.hostname.endsWith(".vercel.app")) {
             return "/api";
         }
+        // Production GoDaddy domain: use relative /api path on same origin
+        if (window.location.hostname.includes("broadbeachonline.com")) {
+            return "/api";
+        }
     }
 
-    // Explicit environment variable takes highest precedence on custom hosts
+    // Explicit environment variable takes precedence if valid and not parked cadac.in
     const rawEnv = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
-    if (rawEnv) return rawEnv;
-
-    if (import.meta.env.DEV) {
-        return "/api";
-    }
+    if (rawEnv && !rawEnv.includes("cadac.in")) return rawEnv;
 
     return "/api";
 };

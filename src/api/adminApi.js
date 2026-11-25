@@ -561,6 +561,15 @@ export const getAdminOverview = async () => {
     // If backend endpoint is unavailable or returns 404/405, compute authoritative metrics
   }
 
+  // Also query live online certificates from MySQL to compute live count
+  let liveOnlineCount = null;
+  try {
+    const certsRes = await getOnlineCertificates();
+    if (certsRes?.data && Array.isArray(certsRes.data)) {
+      liveOnlineCount = certsRes.data.length;
+    }
+  } catch (e) {}
+
   const onlineCerts = getEffectiveOnlineCertificates();
   const manualCerts = getEffectiveManualCertificates();
   const tickets = getStoredArray("broadbeach_support_tickets", DEFAULT_STAGED_TICKETS);
@@ -576,7 +585,7 @@ export const getAdminOverview = async () => {
     Closed: tickets.filter(t => t.status === "closed" || t.status === "Closed").length,
   };
 
-  const onlineCount = onlineCerts.length;
+  const onlineCount = liveOnlineCount !== null ? liveOnlineCount : onlineCerts.length;
   const manualCount = manualCerts.length;
 
   return {
